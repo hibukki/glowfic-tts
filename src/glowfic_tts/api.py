@@ -19,9 +19,7 @@ from pydantic import BaseModel, ConfigDict
 from .models import Coverage
 
 DEFAULT_BASE_URL = "https://glowfic.com/api/v1"
-DEFAULT_USER_AGENT = (
-    "glowfic-tts/0.1 (personal audiobook tool)"
-)
+DEFAULT_USER_AGENT = "glowfic-tts/0.1 (personal audiobook tool)"
 
 
 class _Lax(BaseModel):
