@@ -15,7 +15,12 @@ from pathlib import Path
 from typing import Callable
 
 from .models import SynthSpec
-from .voices import GEMINI_CHANNELS, GEMINI_SAMPLE_RATE, GEMINI_SAMPLE_WIDTH
+from .voices import (
+    GEMINI_CHANNELS,
+    GEMINI_SAMPLE_RATE,
+    GEMINI_SAMPLE_WIDTH,
+    SAY_SAMPLE_RATE,
+)
 
 Synth = Callable[[SynthSpec], bytes]
 
@@ -34,6 +39,7 @@ def synth_say(spec: SynthSpec) -> bytes:
     voice = spec.voice.say
     if voice is None:
         raise ValueError(f"Line for {spec.text[:30]!r} has no `say` voice configured.")
+    rate = int(spec.params.get("sample_rate", SAY_SAMPLE_RATE))
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "clip.wav"
         subprocess.run(
@@ -41,7 +47,7 @@ def synth_say(spec: SynthSpec) -> bytes:
                 "say",
                 "-v", voice.voice_name,
                 "--file-format=WAVE",
-                f"--data-format=LEI16@{GEMINI_SAMPLE_RATE}",
+                f"--data-format=LEI16@{rate}",
                 "-o", str(out),
             ],
             input=spec.text.encode(),

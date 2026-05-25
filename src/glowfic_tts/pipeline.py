@@ -16,9 +16,11 @@ from .models import AudioClip, AudioManifest, Lines, SynthSpec
 from .storage import Storage
 from .tts import Synth, make_gemini_synth, synth_say
 from .voices import (
+    GEMINI_SAMPLE_RATE,
     GEMINI_TTS_MODEL,
     MAC_SAY_VOICES,
     SAY_INSTALL_HELP,
+    SAY_SAMPLE_RATE,
     installed_quality_say_voices,
 )
 
@@ -136,6 +138,7 @@ def run_tts(storage: Storage, provider: str = "say", api_key: str | None = None)
         _require_quality_say_voices(lines)
     storage.audio_dir.mkdir(parents=True, exist_ok=True)
 
+    sample_rate = SAY_SAMPLE_RATE if provider == "say" else GEMINI_SAMPLE_RATE
     clips = []
     for line in lines.lines:
         spec = SynthSpec(
@@ -144,6 +147,7 @@ def run_tts(storage: Storage, provider: str = "say", api_key: str | None = None)
             voice=line.voice,
             output_format="wav",
             text=line.text,
+            params={"sample_rate": sample_rate},
         )
         clip_path = storage.audio_dir / f"{spec.key()}.wav"
         if not clip_path.exists():

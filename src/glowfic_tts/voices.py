@@ -16,6 +16,10 @@ GEMINI_SAMPLE_RATE = 24000
 GEMINI_SAMPLE_WIDTH = 2  # bytes, i.e. 16-bit
 GEMINI_CHANNELS = 1
 
+# macOS Enhanced/Premium voices render natively at 22050 Hz; forcing another rate
+# resamples and smears the audio, so we keep their native rate.
+SAY_SAMPLE_RATE = 22050
+
 # Natural-sounding macOS `say` voices (novelty ones like Bubbles/Zarvox excluded),
 # for free/offline iteration. Verify availability with: say -v '?'
 MAC_SAY_VOICES: list[str] = [
