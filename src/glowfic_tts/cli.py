@@ -23,6 +23,8 @@ def _build_parser() -> argparse.ArgumentParser:
         sp = sub.add_parser(step)
         sp.add_argument("post_id", type=int)
         sp.add_argument("--limit", type=int, default=None, help="only the first N replies")
+        if step == "cast":
+            sp.add_argument("--write", action="store_true", help="write data/{post}/casting.md")
         if step in ("tts", "all"):
             sp.add_argument("--provider", default="say", choices=["say", "gemini"])
             sp.add_argument("--api-key", default=None, help="Gemini key (else $GEMINI_API_KEY)")
@@ -85,3 +87,5 @@ def main(argv: list[str] | None = None) -> None:
         print("\n## Installed quality say voices (name | accent | gender)\n")
         for voice in installed_quality_say_voices_meta():
             print(f"- {voice['name']} | {voice['accent']} | {voice['gender']}")
+        if getattr(args, "write", False):
+            print(f"\nwrote {pipeline.write_casting_doc(storage)}")
