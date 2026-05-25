@@ -9,7 +9,21 @@ import re
 
 from .api import RawApiPost, RawCharacter, RawPost, RawUser
 from .html_text import parse_paragraphs
-from .models import Chunk, RichText, Script, Segment, Speaker, Story, TextRun
+from .models import (
+    Chunk,
+    GeminiVoice,
+    Line,
+    Lines,
+    RichText,
+    Script,
+    Segment,
+    Speaker,
+    Story,
+    TextRun,
+    Voice,
+    VoiceMap,
+)
+from .voices import GEMINI_VOICES
 
 # Conservative vs the Gemini TTS input limit; confirm the real cap when wiring tts.
 DEFAULT_MAX_CHARS = 3000
@@ -145,3 +159,35 @@ def extract(story: Story, max_chars: int = DEFAULT_MAX_CHARS) -> Script:
         chunks=chunks,
         speakers=speakers,
     )
+
+
+def make_voicemap(script: Script, existing: VoiceMap | None = None) -> VoiceMap:
+    """Assign a voice to every speaker, preserving any the user already set.
+
+    New speakers get a Gemini voice round-robin by their position in the sorted
+    key list, so assignment is deterministic and stable as speakers are added.
+    """
+    voices = dict(existing.voices) if existing else {}
+    for index, voice_key in enumerate(sorted(script.speakers)):
+        if voice_key not in voices:
+            name = GEMINI_VOICES[index % len(GEMINI_VOICES)]
+            voices[voice_key] = Voice(gemini=GeminiVoice(voice_name=name))
+    return VoiceMap(voices=voices)
+
+
+def bind(script: Script, voicemap: VoiceMap) -> Lines:
+    lines: list[Line] = []
+    for chunk in script.chunks:
+        voice = voicemap.voices.get(chunk.voice_key)
+        if voice is None:
+            raise KeyError(f"No voice mapped for speaker {chunk.voice_key!r}; run `voices` first.")
+        lines.append(
+            Line(
+                seq=chunk.seq,
+                chunk_index=chunk.chunk_index,
+                voice_key=chunk.voice_key,
+                voice=voice,
+                text=chunk.rich.plain(),
+            )
+        )
+    return Lines(coverage=script.coverage, post_id=script.post_id, lines=lines)
