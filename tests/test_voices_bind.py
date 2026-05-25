@@ -1,6 +1,6 @@
 import pytest
 
-from glowfic_tts.models import GeminiVoice, Voice, VoiceMap
+from glowfic_tts.models import GeminiVoice, MacSayVoice, Voice, VoiceMap
 from glowfic_tts.stages import assemble, bind, extract, make_voicemap
 
 
@@ -25,6 +25,25 @@ def test_voicemap_preserves_user_edits(raw_post):
 def test_voicemap_is_deterministic(raw_post):
     script = extract(assemble(raw_post))
     assert make_voicemap(script) == make_voicemap(script)
+
+
+def test_distinct_speakers_get_distinct_voices_within_pool(raw_post):
+    script = extract(assemble(raw_post))
+    assert len(script.speakers) <= 7  # fixture stays within the clear-voice pool
+    vm = make_voicemap(script)
+    say_names = [v.say.voice_name for v in vm.voices.values()]
+    assert len(set(say_names)) == len(say_names)  # no collisions
+
+
+def test_blacklisted_say_voice_is_reassigned_but_other_edits_kept(raw_post):
+    script = extract(assemble(raw_post))
+    key = sorted(script.speakers)[0]
+    stuck = VoiceMap(
+        voices={key: Voice(gemini=GeminiVoice(voice_name="Puck"), say=MacSayVoice(voice_name="Fred"))}
+    )
+    vm = make_voicemap(script, existing=stuck, say_blacklist={"Fred"})
+    assert vm.voices[key].say.voice_name != "Fred"  # healed
+    assert vm.voices[key].gemini.voice_name == "Puck"  # unrelated edit preserved
 
 
 def test_bind_resolves_each_chunk_to_its_voice(raw_post):

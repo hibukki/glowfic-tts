@@ -107,6 +107,7 @@ def test_tts_caches_identical_specs_and_invalidates_on_change(tmp_path, monkeypa
         return _tiny_wav()
 
     monkeypatch.setattr(pipeline, "_provider", lambda provider, api_key: (fake_synth, "say"))
+    monkeypatch.setattr(pipeline, "installed_quality_say_voices", lambda: ["Samantha", "Daniel"])
 
     manifest = pipeline.run_tts(storage)
     assert len(manifest.clips) == 3
@@ -116,6 +117,14 @@ def test_tts_caches_identical_specs_and_invalidates_on_change(tmp_path, monkeypa
     calls.clear()
     pipeline.run_tts(storage)  # rerun: all cached
     assert calls == []
+
+
+def test_say_tts_requires_quality_voices(tmp_path, monkeypatch):
+    storage = Storage(7, Coverage.of(1), root=tmp_path)
+    storage.save(Lines(coverage=storage.coverage, post_id=7, lines=[_line(0, "Samantha", "Hi.")]))
+    monkeypatch.setattr(pipeline, "installed_quality_say_voices", lambda: [])  # none installed
+    with pytest.raises(RuntimeError, match="Enhanced/Premium"):
+        pipeline.run_tts(storage, provider="say")
 
 
 def test_concat_orders_clips_by_seq(tmp_path):
@@ -138,10 +147,26 @@ def test_concat_orders_clips_by_seq(tmp_path):
     )
     storage.save(manifest)
 
-    out = pipeline.run_concat(storage)
-    assert out.exists() and out.stat().st_size > 0
+    outputs = pipeline.run_concat(storage)
+    assert len(outputs) == 1 and outputs[0].exists() and outputs[0].stat().st_size > 0
     listing = (storage.dir / "_concat.txt").read_text().splitlines()
     assert listing[0].endswith("clip0.wav'") and listing[1].endswith("clip1.wav'")
+
+
+def test_concat_groups_into_files_by_reply_range(tmp_path):
+    storage = Storage(7, Coverage.of(4), root=tmp_path)
+    storage.audio_dir.mkdir(parents=True, exist_ok=True)
+    clips = []
+    for seq in range(4):
+        p = storage.audio_dir / f"clip{seq}.wav"
+        p.write_bytes(_tiny_wav())
+        clips.append(AudioClip(seq=seq, chunk_index=0, synthesis_key=str(seq), spec=_spec(str(seq)), path=str(p)))
+    storage.save(AudioManifest(coverage=storage.coverage, post_id=7, clips=clips))
+
+    outputs = pipeline.run_concat(storage, group=2)
+    names = sorted(p.name for p in outputs)
+    assert names == ["output_seq_0000_to_0001.mp3", "output_seq_0002_to_0003.mp3"]
+    assert all(p.exists() and p.stat().st_size > 0 for p in outputs)
 
 
 def _spec(text: str) -> SynthSpec:

@@ -26,6 +26,8 @@ def _build_parser() -> argparse.ArgumentParser:
         if step in ("tts", "all"):
             sp.add_argument("--provider", default="say", choices=["say", "gemini"])
             sp.add_argument("--api-key", default=None, help="Gemini key (else $GEMINI_API_KEY)")
+        if step in ("concat", "all"):
+            sp.add_argument("--group", type=int, default=None, help="one file per N replies")
     return parser
 
 
@@ -58,5 +60,7 @@ def main(argv: list[str] | None = None) -> None:
         manifest = pipeline.run_tts(storage, provider=provider, api_key=api_key)
         print(f"synthesized {len(manifest.clips)} clips via {provider} -> {storage.audio_dir}")
     if args.cmd in ("concat", "all"):
-        output = pipeline.run_concat(storage)
-        print(f"done -> {output}")
+        outputs = pipeline.run_concat(storage, group=getattr(args, "group", None))
+        print(f"done -> {len(outputs)} file(s):")
+        for path in outputs:
+            print(f"  {path}")

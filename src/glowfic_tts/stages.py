@@ -6,6 +6,7 @@ The orchestrator (pipeline.py) loads inputs, calls these, and saves outputs.
 from __future__ import annotations
 
 import re
+from collections import Counter
 
 from .api import RawApiPost, RawCharacter, RawPost, RawUser
 from .html_text import parse_paragraphs
@@ -24,7 +25,7 @@ from .models import (
     Voice,
     VoiceMap,
 )
-from .voices import GEMINI_VOICES, MAC_SAY_VOICES
+from .voices import GEMINI_VOICES, MAC_SAY_BLACKLIST, MAC_SAY_VOICES
 
 # Conservative vs the Gemini TTS input limit; confirm the real cap when wiring tts.
 DEFAULT_MAX_CHARS = 3000
@@ -162,19 +163,49 @@ def extract(story: Story, max_chars: int = DEFAULT_MAX_CHARS) -> Script:
     )
 
 
-def make_voicemap(script: Script, existing: VoiceMap | None = None) -> VoiceMap:
-    """Assign a voice to every speaker, preserving any the user already set.
+def make_voicemap(
+    script: Script,
+    existing: VoiceMap | None = None,
+    say_voices: list[str] = MAC_SAY_VOICES,
+    say_blacklist: set[str] = MAC_SAY_BLACKLIST,
+) -> VoiceMap:
+    """Assign a voice to every speaker, preserving choices the user already made.
 
-    New speakers get a Gemini voice round-robin by their position in the sorted
-    key list, so assignment is deterministic and stable as speakers are added.
+    Voices needing assignment go to the least-used option, so distinct speakers
+    get distinct voices until the pool runs out (then reuse is balanced). User
+    edits are kept, except a blacklisted `say` voice is reassigned to a clear one.
     """
-    voices = dict(existing.voices) if existing else {}
-    for index, voice_key in enumerate(sorted(script.speakers)):
-        if voice_key not in voices:
-            voices[voice_key] = Voice(
-                gemini=GeminiVoice(voice_name=GEMINI_VOICES[index % len(GEMINI_VOICES)]),
-                say=MacSayVoice(voice_name=MAC_SAY_VOICES[index % len(MAC_SAY_VOICES)]),
-            )
+    say_pool = [v for v in say_voices if v not in say_blacklist]
+    prior = existing.voices if existing else {}
+    keys = sorted(script.speakers)
+
+    kept_gemini: dict[str, GeminiVoice | None] = {}
+    kept_say: dict[str, MacSayVoice | None] = {}
+    used_gemini: Counter[str] = Counter()
+    used_say: Counter[str] = Counter()
+    for key in keys:
+        old = prior.get(key)
+        gemini = old.gemini if (old and old.gemini) else None
+        say = old.say if (old and old.say and old.say.voice_name not in say_blacklist) else None
+        kept_gemini[key], kept_say[key] = gemini, say
+        if gemini:
+            used_gemini[gemini.voice_name] += 1
+        if say:
+            used_say[say.voice_name] += 1
+
+    voices: dict[str, Voice] = {}
+    for key in keys:
+        gemini = kept_gemini[key]
+        if gemini is None:
+            name = min(GEMINI_VOICES, key=lambda v: used_gemini[v])
+            used_gemini[name] += 1
+            gemini = GeminiVoice(voice_name=name)
+        say = kept_say[key]
+        if say is None:
+            name = min(say_pool, key=lambda v: used_say[v])
+            used_say[name] += 1
+            say = MacSayVoice(voice_name=name)
+        voices[key] = Voice(gemini=gemini, say=say, title=prior[key].title if key in prior else None)
     return VoiceMap(voices=voices)
 
 

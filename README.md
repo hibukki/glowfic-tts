@@ -12,9 +12,18 @@ uv run glowfic-tts all 7508 --limit 25
 
 # Full render via Gemini TTS (needs $GEMINI_API_KEY):
 uv run glowfic-tts all 7508 --provider gemini
+
+# Split into one file per 25 replies (easier to navigate):
+uv run glowfic-tts all 7508 --limit 100 --group 25
 ```
 
-Output lands in `data/{post_id}/{coverage}/output.mp3`. Drop `--limit` for the whole post.
+Output lands in `data/{post_id}/{coverage}/` (one `output.mp3`, or
+`output_seq_*.mp3` files with `--group`). Drop `--limit` for the whole post.
+
+The `say` provider **requires Enhanced/Premium English voices** (the standard
+ones are too robotic); it crashes with install instructions if they're missing.
+Install them once via System Settings → Accessibility → Spoken Content →
+System Voice → Manage Voices, then re-run `voices`.
 
 ## Pipeline
 

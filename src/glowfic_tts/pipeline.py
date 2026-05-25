@@ -15,7 +15,12 @@ from .api import GlowficClient, RawPost
 from .models import AudioClip, AudioManifest, Lines, SynthSpec
 from .storage import Storage
 from .tts import Synth, make_gemini_synth, synth_say
-from .voices import GEMINI_TTS_MODEL
+from .voices import (
+    GEMINI_TTS_MODEL,
+    MAC_SAY_VOICES,
+    SAY_INSTALL_HELP,
+    installed_quality_say_voices,
+)
 
 DEFAULT_PER_PAGE = 100
 
@@ -62,7 +67,12 @@ def run_extract(storage: Storage):
 
 
 def run_voices(storage: Storage):
-    voicemap = stages.make_voicemap(storage.load_script(), existing=storage.load_voicemap())
+    # Prefer installed Enhanced/Premium voices; fall back to the standard list so
+    # the map still generates (e.g. for gemini-only use). `say` tts enforces quality.
+    say_voices = installed_quality_say_voices() or MAC_SAY_VOICES
+    voicemap = stages.make_voicemap(
+        storage.load_script(), existing=storage.load_voicemap(), say_voices=say_voices
+    )
     storage.save_voicemap(voicemap)
     return voicemap
 
@@ -85,9 +95,23 @@ def _provider(provider: str, api_key: str | None) -> tuple[Synth, str]:
     raise ValueError(f"Unknown provider {provider!r} (use 'say' or 'gemini').")
 
 
+def _require_quality_say_voices(lines: Lines) -> None:
+    quality = set(installed_quality_say_voices())
+    configured = {line.voice.say.voice_name for line in lines.lines if line.voice.say}
+    missing = sorted(configured - quality)
+    if missing:
+        raise RuntimeError(
+            "The `say` provider needs Enhanced/Premium voices, but these aren't "
+            f"installed (or aren't high-quality): {missing}\n\n{SAY_INSTALL_HELP}\n"
+            "After installing, re-run `voices` to reassign, then `tts`."
+        )
+
+
 def run_tts(storage: Storage, provider: str = "say", api_key: str | None = None) -> AudioManifest:
     synth, model = _provider(provider, api_key)
     lines: Lines = storage.load_lines()
+    if provider == "say":
+        _require_quality_say_voices(lines)
     storage.audio_dir.mkdir(parents=True, exist_ok=True)
 
     clips = []
@@ -116,15 +140,32 @@ def run_tts(storage: Storage, provider: str = "say", api_key: str | None = None)
     return manifest
 
 
-def run_concat(storage: Storage) -> Path:
-    manifest = storage.load_manifest()
-    ordered = sorted(manifest.clips, key=lambda c: (c.seq, c.chunk_index))
-    listing = "".join(f"file '{Path(c.path).resolve()}'\n" for c in ordered)
-    list_path = storage.dir / "_concat.txt"
-    list_path.write_text(listing)
+def _ffmpeg_concat(clip_paths: list[Path], out: Path, list_path: Path) -> None:
+    list_path.write_text("".join(f"file '{p.resolve()}'\n" for p in clip_paths))
     subprocess.run(
-        ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(list_path), str(storage.output_path)],
+        ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(list_path), str(out)],
         check=True,
         capture_output=True,
     )
-    return storage.output_path
+
+
+def run_concat(storage: Storage, group: int | None = None) -> list[Path]:
+    """Join clips into one mp3, or into one file per `group` consecutive replies
+    (e.g. group=25 -> output_seq_0000_to_0024.mp3) for easier navigation."""
+    manifest = storage.load_manifest()
+    ordered = sorted(manifest.clips, key=lambda c: (c.seq, c.chunk_index))
+
+    if group is None:
+        _ffmpeg_concat([Path(c.path) for c in ordered], storage.output_path, storage.dir / "_concat.txt")
+        return [storage.output_path]
+
+    buckets: dict[int, list] = {}
+    for clip in ordered:
+        buckets.setdefault(clip.seq // group, []).append(clip)
+
+    outputs = []
+    for _, clips in sorted(buckets.items()):
+        out = storage.dir / f"output_seq_{clips[0].seq:04d}_to_{clips[-1].seq:04d}.mp3"
+        _ffmpeg_concat([Path(c.path) for c in clips], out, out.with_suffix(".concat.txt"))
+        outputs.append(out)
+    return outputs
