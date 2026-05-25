@@ -254,9 +254,9 @@ def _link_clips_by_tag(storage: Storage, clips: list[AudioClip]) -> None:
         link.symlink_to(Path("..") / Path(clip.path).name)
 
 
-def _wav_ms(path: Path) -> int:
+def _wav_frames_rate(path: Path) -> tuple[int, int]:
     with wave.open(str(path), "rb") as w:
-        return round(1000 * w.getnframes() / w.getframerate())
+        return w.getnframes(), w.getframerate()
 
 
 def _ffmeta_escape(text: str) -> str:
@@ -278,13 +278,16 @@ def run_chapters(storage: Storage) -> Path:
             words = " ".join(line.text.split())[:48]
             title_for[line.seq] = f"{line.seq:04d} {line.voice_key}: {words}"
 
+    # Chapter times from cumulative frame counts (not summed rounded ms), so
+    # boundaries stay sample-exact and don't drift over a long book.
+    _, rate = _wav_frames_rate(Path(ordered[0].path))
     starts: dict[int, int] = {}
     ends: dict[int, int] = {}
-    cursor = 0
+    frames = 0
     for clip in ordered:
-        starts.setdefault(clip.seq, cursor)
-        cursor += _wav_ms(Path(clip.path))
-        ends[clip.seq] = cursor
+        starts.setdefault(clip.seq, round(1000 * frames / rate))
+        frames += _wav_frames_rate(Path(clip.path))[0]
+        ends[clip.seq] = round(1000 * frames / rate)
 
     meta = [";FFMETADATA1"]
     for seq in sorted(starts):
@@ -300,9 +303,12 @@ def run_chapters(storage: Storage) -> Path:
     meta_path.write_text("\n".join(meta) + "\n")
     combined = _concat_to_wav([Path(c.path) for c in ordered], storage.dir / "_combined.wav")
     out = storage.dir / "output.m4b"
+    # Apple's AudioToolbox AAC at a standard 44100 Hz + faststart — most compatible
+    # with Apple Books (ffmpeg's native aac at 22050 stuttered there).
     subprocess.run(
         ["ffmpeg", "-y", "-i", str(combined), "-i", str(meta_path),
-         "-map_metadata", "1", "-c:a", "aac", "-b:a", "128k", str(out)],
+         "-map", "0:a", "-map_metadata", "1", "-map_chapters", "1",
+         "-ar", "44100", "-c:a", "aac_at", "-b:a", "64k", "-movflags", "+faststart", str(out)],
         check=True,
         capture_output=True,
     )
