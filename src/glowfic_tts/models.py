@@ -126,6 +126,9 @@ class Voice(BaseModel):
     gemini: GeminiVoice | None = None
     elevenlabs: ElevenLabsVoice | None = None
     say: MacSayVoice | None = None
+    # Optional epithet spoken in the self-introduction, e.g. "lantalótë".
+    # Glowfic has no such field, so it's yours to fill in voices.toml.
+    title: str | None = None
 
 
 class VoiceMap(BaseModel):

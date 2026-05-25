@@ -178,19 +178,39 @@ def make_voicemap(script: Script, existing: VoiceMap | None = None) -> VoiceMap:
     return VoiceMap(voices=voices)
 
 
-def bind(script: Script, voicemap: VoiceMap) -> Lines:
+def _introduction(speaker: Speaker, voice: Voice) -> str | None:
+    """e.g. "Alexeara Cansellarion. third-of-that-name. lantalótë." — separate
+    sentences so the TTS pauses between them. None for character-less narration."""
+    if not speaker.character_name:
+        return None
+    parts = [speaker.character_name]
+    if speaker.screenname and speaker.screenname != speaker.character_name:
+        parts.append(speaker.screenname)
+    if voice.title:
+        parts.append(voice.title)
+    return ". ".join(parts) + "."
+
+
+def bind(script: Script, voicemap: VoiceMap, announce_first_appearance: bool = True) -> Lines:
     lines: list[Line] = []
+    introduced: set[str] = set()
     for chunk in script.chunks:
         voice = voicemap.voices.get(chunk.voice_key)
         if voice is None:
             raise KeyError(f"No voice mapped for speaker {chunk.voice_key!r}; run `voices` first.")
+        text = chunk.rich.plain()
+        if announce_first_appearance and chunk.voice_key not in introduced:
+            intro = _introduction(script.speakers[chunk.voice_key], voice)
+            if intro:
+                text = f"{intro}\n\n{text}"
+        introduced.add(chunk.voice_key)
         lines.append(
             Line(
                 seq=chunk.seq,
                 chunk_index=chunk.chunk_index,
                 voice_key=chunk.voice_key,
                 voice=voice,
-                text=chunk.rich.plain(),
+                text=text,
             )
         )
     return Lines(coverage=script.coverage, post_id=script.post_id, lines=lines)
