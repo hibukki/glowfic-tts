@@ -208,7 +208,12 @@ def make_voicemap(
             name = min(say_pool, key=lambda v: used_say[v])
             used_say[name] += 1
             say = MacSayVoice(voice_name=name)
-        voices[key] = Voice(gemini=gemini, say=say, title=prior[key].title if key in prior else None)
+        # Start from the prior entry so unrelated provider edits (e.g. elevenlabs)
+        # survive; only the gemini/say assignments are (re)set.
+        voice = prior[key].model_copy(deep=True) if key in prior else Voice()
+        voice.gemini = gemini
+        voice.say = say
+        voices[key] = voice
 
     # Don't drop characters from other coverages that share this voices.toml.
     for key, voice in prior.items():
@@ -236,19 +241,23 @@ def bind(script: Script, voicemap: VoiceMap, announce_first_appearance: bool = T
         voice = voicemap.voices.get(chunk.voice_key)
         if voice is None:
             raise KeyError(f"No voice mapped for speaker {chunk.voice_key!r}; run `voices` first.")
-        text = chunk.rich.plain()
-        if announce_first_appearance and chunk.voice_key not in introduced:
+        first_time = chunk.voice_key not in introduced
+        introduced.add(chunk.voice_key)
+        if announce_first_appearance and first_time:
             intro = _introduction(script.speakers[chunk.voice_key], voice)
             if intro:
-                text = f"{intro}\n\n{text}"
-        introduced.add(chunk.voice_key)
+                # Its own line (chunk_index -1 sorts first within the tag) so it
+                # never inflates a content chunk past the TTS limit.
+                lines.append(
+                    Line(seq=chunk.seq, chunk_index=-1, voice_key=chunk.voice_key, voice=voice, text=intro)
+                )
         lines.append(
             Line(
                 seq=chunk.seq,
                 chunk_index=chunk.chunk_index,
                 voice_key=chunk.voice_key,
                 voice=voice,
-                text=text,
+                text=chunk.rich.plain(),
             )
         )
     return Lines(coverage=script.coverage, post_id=script.post_id, lines=lines)

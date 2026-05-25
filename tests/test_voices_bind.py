@@ -63,17 +63,16 @@ def test_characters_introduce_themselves_once_on_first_appearance(raw_post):
     vm.voices["Alexeara Cansellarion"].title = "lantalótë"  # user-supplied epithet
     lines = bind(script, vm, announce_first_appearance=True)
 
+    # The intro is its own line (chunk_index -1), exactly the introduction text.
     opening = lines.lines[0]
-    assert opening.text.startswith("Alexeara Cansellarion. third-of-that-name. lantalótë.\n\n")
+    assert opening.chunk_index == -1
+    assert opening.text == "Alexeara Cansellarion. third-of-that-name. lantalótë."
 
-    # Each character is introduced exactly once: the intro prefix appears only on
-    # the first line of each voice.
-    seen: set[str] = set()
-    for line in lines.lines:
-        intro_here = line.voice_key not in seen and script.speakers[line.voice_key].character_name
-        if intro_here:
-            assert line.text.startswith(script.speakers[line.voice_key].character_name)
-        seen.add(line.voice_key)
+    # Each named character gets exactly one intro line; content lines are untouched.
+    intro_lines = [l for l in lines.lines if l.chunk_index == -1]
+    assert len(intro_lines) == len({l.voice_key for l in intro_lines})
+    content = [l for l in lines.lines if l.chunk_index >= 0]
+    assert len(content) == len(script.chunks)
 
 
 def test_bind_fails_loudly_on_missing_voice(raw_post):
