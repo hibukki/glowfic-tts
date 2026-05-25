@@ -13,6 +13,13 @@ GEMINI_SAMPLE_RATE = 24000
 GEMINI_SAMPLE_WIDTH = 2  # bytes, i.e. 16-bit
 GEMINI_CHANNELS = 1
 
+# Natural-sounding macOS `say` voices (novelty ones like Bubbles/Zarvox excluded),
+# for free/offline iteration. Verify availability with: say -v '?'
+MAC_SAY_VOICES: list[str] = [
+    "Samantha", "Daniel", "Karen", "Moira", "Rishi", "Tessa",
+    "Fred", "Ralph", "Albert", "Kathy", "Tara", "Junior",
+]
+
 GEMINI_VOICES: list[str] = [
     "Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede",
     "Callirrhoe", "Autonoe", "Enceladus", "Iapetus", "Umbriel", "Algieba",

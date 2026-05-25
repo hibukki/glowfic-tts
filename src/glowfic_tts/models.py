@@ -118,9 +118,14 @@ class ElevenLabsVoice(BaseModel):
     voice_id: str
 
 
+class MacSayVoice(BaseModel):
+    voice_name: str  # a macOS `say -v` voice, e.g. "Samantha" — free/offline, for iterating
+
+
 class Voice(BaseModel):
     gemini: GeminiVoice | None = None
     elevenlabs: ElevenLabsVoice | None = None
+    say: MacSayVoice | None = None
 
 
 class VoiceMap(BaseModel):

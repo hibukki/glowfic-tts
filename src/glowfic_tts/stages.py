@@ -14,6 +14,7 @@ from .models import (
     GeminiVoice,
     Line,
     Lines,
+    MacSayVoice,
     RichText,
     Script,
     Segment,
@@ -23,7 +24,7 @@ from .models import (
     Voice,
     VoiceMap,
 )
-from .voices import GEMINI_VOICES
+from .voices import GEMINI_VOICES, MAC_SAY_VOICES
 
 # Conservative vs the Gemini TTS input limit; confirm the real cap when wiring tts.
 DEFAULT_MAX_CHARS = 3000
@@ -170,8 +171,10 @@ def make_voicemap(script: Script, existing: VoiceMap | None = None) -> VoiceMap:
     voices = dict(existing.voices) if existing else {}
     for index, voice_key in enumerate(sorted(script.speakers)):
         if voice_key not in voices:
-            name = GEMINI_VOICES[index % len(GEMINI_VOICES)]
-            voices[voice_key] = Voice(gemini=GeminiVoice(voice_name=name))
+            voices[voice_key] = Voice(
+                gemini=GeminiVoice(voice_name=GEMINI_VOICES[index % len(GEMINI_VOICES)]),
+                say=MacSayVoice(voice_name=MAC_SAY_VOICES[index % len(MAC_SAY_VOICES)]),
+            )
     return VoiceMap(voices=voices)
 
 

@@ -1,2 +1,3 @@
-def main() -> None:
-    print("Hello from glowfic-tts!")
+from .cli import main
+
+__all__ = ["main"]

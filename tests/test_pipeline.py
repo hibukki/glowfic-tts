@@ -1,0 +1,151 @@
+import io
+import wave
+
+import pytest
+
+from glowfic_tts import pipeline
+from glowfic_tts.api import PageMeta, RawApiPost, RawApiReply, RawUser
+from glowfic_tts.models import (
+    AudioClip,
+    AudioManifest,
+    Coverage,
+    Line,
+    Lines,
+    MacSayVoice,
+    Story,
+    SynthSpec,
+    Voice,
+)
+from glowfic_tts.storage import Storage
+
+
+def _tiny_wav() -> bytes:
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(24000)
+        w.writeframes(b"\x00\x00" * 2400)  # 0.1s of silence
+    return buf.getvalue()
+
+
+class FakeClient:
+    def __init__(self, post: RawApiPost, pages: list[list[RawApiReply]]):
+        self.post = post
+        self.pages = pages
+        self.post_calls = 0
+        self.page_calls: list[int] = []
+
+    def get_post(self, post_id):
+        self.post_calls += 1
+        return self.post
+
+    def get_replies_page(self, post_id, page, per_page):
+        self.page_calls.append(page)
+        items = self.pages[page - 1]
+        return items, PageMeta(page=page, per_page=per_page, total=sum(len(p) for p in self.pages))
+
+
+def _reply(i: int) -> RawApiReply:
+    return RawApiReply(id=i, content=f"<p>line {i}</p>", user=RawUser(username="u"))
+
+
+def _post() -> RawApiPost:
+    return RawApiPost(id=7, subject="s", authors=[RawUser(username="u")], num_replies=10, content="<p>start</p>")
+
+
+def test_fetch_respects_limit_and_caches(tmp_path):
+    storage = Storage(7, Coverage.of(3), root=tmp_path)
+    client = FakeClient(_post(), [[_reply(i) for i in range(1, 11)]])  # one big page available
+
+    raw = pipeline.run_fetch(storage, client, 7, limit=3)
+    assert len(raw.replies) == 3  # truncated to the limit
+    assert client.post_calls == 1
+
+    # rerun: everything cached, zero network
+    client.post_calls = 0
+    client.page_calls.clear()
+    raw2 = pipeline.run_fetch(storage, client, 7, limit=3)
+    assert len(raw2.replies) == 3
+    assert client.post_calls == 0 and client.page_calls == []
+
+
+def test_coverage_isolation_paths_differ(tmp_path):
+    assert Storage(7, Coverage.of(None), root=tmp_path).dir != Storage(7, Coverage.of(25), root=tmp_path).dir
+
+
+def test_load_rejects_mismatched_coverage(tmp_path):
+    storage = Storage(7, Coverage.of(25), root=tmp_path)
+    full_story = Story(coverage=Coverage.of(None), post_id=7, subject="x", authors=[], segments=[])
+    storage._save(storage._path_for(Story), full_story)
+    with pytest.raises(ValueError):
+        storage.load_story()
+
+
+def _line(seq: int, voice_name: str, text: str) -> Line:
+    voice = Voice(say=MacSayVoice(voice_name=voice_name))
+    return Line(seq=seq, chunk_index=0, voice_key=voice_name, voice=voice, text=text)
+
+
+def test_tts_caches_identical_specs_and_invalidates_on_change(tmp_path, monkeypatch):
+    storage = Storage(7, Coverage.of(3), root=tmp_path)
+    lines = Lines(
+        coverage=storage.coverage,
+        post_id=7,
+        lines=[
+            _line(0, "Samantha", "Hello."),
+            _line(1, "Samantha", "Hello."),  # identical fingerprint -> reuse
+            _line(2, "Daniel", "Hello."),  # different voice -> new clip
+        ],
+    )
+    storage.save(lines)
+
+    calls: list[str] = []
+
+    def fake_synth(spec: SynthSpec) -> bytes:
+        calls.append(spec.key())
+        return _tiny_wav()
+
+    monkeypatch.setattr(pipeline, "_provider", lambda provider, api_key: (fake_synth, "say"))
+
+    manifest = pipeline.run_tts(storage)
+    assert len(manifest.clips) == 3
+    assert len(calls) == 2  # two unique fingerprints, not three
+    assert len({c.synthesis_key for c in manifest.clips}) == 2
+
+    calls.clear()
+    pipeline.run_tts(storage)  # rerun: all cached
+    assert calls == []
+
+
+def test_concat_orders_clips_by_seq(tmp_path):
+    storage = Storage(7, Coverage.of(2), root=tmp_path)
+    storage.audio_dir.mkdir(parents=True, exist_ok=True)
+    paths = []
+    for seq in (0, 1):
+        p = storage.audio_dir / f"clip{seq}.wav"
+        p.write_bytes(_tiny_wav())
+        paths.append(p)
+
+    # manifest deliberately out of order; concat must sort by (seq, chunk_index)
+    manifest = AudioManifest(
+        coverage=storage.coverage,
+        post_id=7,
+        clips=[
+            AudioClip(seq=1, chunk_index=0, synthesis_key="b", spec=_spec("two"), path=str(paths[1])),
+            AudioClip(seq=0, chunk_index=0, synthesis_key="a", spec=_spec("one"), path=str(paths[0])),
+        ],
+    )
+    storage.save(manifest)
+
+    out = pipeline.run_concat(storage)
+    assert out.exists() and out.stat().st_size > 0
+    listing = (storage.dir / "_concat.txt").read_text().splitlines()
+    assert listing[0].endswith("clip0.wav'") and listing[1].endswith("clip1.wav'")
+
+
+def _spec(text: str) -> SynthSpec:
+    return SynthSpec(
+        provider="say", model="say", voice=Voice(say=MacSayVoice(voice_name="Samantha")),
+        output_format="wav", text=text,
+    )
