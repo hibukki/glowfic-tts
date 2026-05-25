@@ -1,0 +1,107 @@
+[
+  {
+    "id": 2047693,
+    "content": "<p>\"It is possible to resurrect the mortal Iomedae,\" she says without disabusing him of the fairly ridiculous notion that he could in some way have spared Her the cost of telling him that. It would in fact be a waste of their shared resources to say that.&nbsp;</p>",
+    "created_at": "2023-10-22T05:08:55.387Z",
+    "updated_at": "2023-10-22T05:08:55.387Z",
+    "character_name": "Iomedae",
+    "character": {
+      "id": 10345,
+      "name": "Iomedae",
+      "screenname": null
+    },
+    "icon": {
+      "id": 158669,
+      "url": "https://d1anwqy6ci9o1i.cloudfront.net/users%2F34%2Ficons%2Ffhwwycadvtmo1m23r86_Screen+Shot+2020-09-11+at+2.44.26+PM.png",
+      "keyword": "Screen Shot 2020-09-11 at 2.44.26 PM"
+    },
+    "user": {
+      "id": 34,
+      "username": "lintamande"
+    }
+  },
+  {
+    "id": 2047696,
+    "content": "<p>&hellip;That one might in fact not be his (or Lastwall&rsquo;s) fault though if they&rsquo;ve been able to resurrect the mortal Iomedae this whole time - well <em>someone</em> made a mistake somewhere in there. He teleports to Vigil as soon as the vision ends, to ask Her in the next planned <em>commune</em> whether this vision was in fact from Her, then does a <em>sending</em> to ask, ugh, Clepati, whether she happens to have prepared <em>true resurrection</em> this morning.</p>",
+    "created_at": "2023-10-22T05:09:51.520Z",
+    "updated_at": "2023-10-22T05:09:51.520Z",
+    "character_name": "Alexeara Cansellarion",
+    "character": {
+      "id": 16334,
+      "name": "Alexeara Cansellarion",
+      "screenname": "third-of-that-name"
+    },
+    "icon": {
+      "id": 317804,
+      "url": "https://d1anwqy6ci9o1i.cloudfront.net/users%2F55%2Ficons%2Frkdo1mjpklg02jc52fo03e2_Third+Alex.png",
+      "keyword": "Third Alex"
+    },
+    "user": {
+      "id": 55,
+      "username": "lantalótë"
+    }
+  },
+  {
+    "id": 2047702,
+    "content": "<p>It&rsquo;s the funniest thing! She did! Actually three times but the third one is unrelated.</p>\r\n<p>&nbsp;</p>",
+    "created_at": "2023-10-22T05:10:49.990Z",
+    "updated_at": "2023-10-22T05:10:58.943Z",
+    "character_name": "Nefreti Clepati",
+    "character": {
+      "id": 10132,
+      "name": "Nefreti Clepati",
+      "screenname": null
+    },
+    "icon": {
+      "id": 152401,
+      "url": "https://d1anwqy6ci9o1i.cloudfront.net/users%2F34%2Ficons%2Ff43r3vk3olqe4zvjxc6dx_Screen+Shot+2020-08-15+at+9.53.54+PM.png",
+      "keyword": "Screen Shot 2020-08-15 at 9.53.54 PM"
+    },
+    "user": {
+      "id": 34,
+      "username": "lintamande"
+    }
+  },
+  {
+    "id": 2047707,
+    "content": "<p>Yeah he thought that might happen. (He'll ask about the second when he gets there, rather than waste another spell.) Make that an emergency commune, then? And he&rsquo;ll borrow a wizard for the hop to Sothis.</p>",
+    "created_at": "2023-10-22T05:11:50.929Z",
+    "updated_at": "2023-10-22T05:11:50.929Z",
+    "character_name": "Alexeara Cansellarion",
+    "character": {
+      "id": 16334,
+      "name": "Alexeara Cansellarion",
+      "screenname": "third-of-that-name"
+    },
+    "icon": {
+      "id": 317804,
+      "url": "https://d1anwqy6ci9o1i.cloudfront.net/users%2F55%2Ficons%2Frkdo1mjpklg02jc52fo03e2_Third+Alex.png",
+      "keyword": "Third Alex"
+    },
+    "user": {
+      "id": 55,
+      "username": "lantalótë"
+    }
+  },
+  {
+    "id": 2047708,
+    "content": "<p>\"Do I need to tell you who?\"</p>",
+    "created_at": "2023-10-22T05:12:02.134Z",
+    "updated_at": "2023-10-22T05:12:02.134Z",
+    "character_name": "Alexeara Cansellarion",
+    "character": {
+      "id": 16334,
+      "name": "Alexeara Cansellarion",
+      "screenname": "third-of-that-name"
+    },
+    "icon": {
+      "id": 317804,
+      "url": "https://d1anwqy6ci9o1i.cloudfront.net/users%2F55%2Ficons%2Frkdo1mjpklg02jc52fo03e2_Third+Alex.png",
+      "keyword": "Third Alex"
+    },
+    "user": {
+      "id": 55,
+      "username": "lantalótë"
+    }
+  }
+]
