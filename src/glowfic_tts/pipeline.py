@@ -8,6 +8,7 @@ only on a miss, write the artifact, move on (Review fix #4).
 from __future__ import annotations
 
 import functools
+import os
 import subprocess
 import wave
 from collections import Counter
@@ -243,16 +244,16 @@ def run_tts(storage: Storage, provider: str = "say", api_key: str | None = None)
 
 
 def _link_clips_by_tag(storage: Storage, clips: list[AudioClip]) -> None:
-    """Symlink each content-hashed clip under by_tag/tag_00111_part00.wav so a
-    specific tag's audio is easy to find (e.g. to debug a glitch)."""
-    by_tag = storage.audio_dir / "by_tag"
-    by_tag.mkdir(exist_ok=True)
+    """Symlink each content-hashed clip (in the shared audio cache) under this
+    coverage's by_tag/tag_00111_part00.wav, so a specific tag is easy to find."""
+    by_tag = storage.dir / "by_tag"
+    by_tag.mkdir(parents=True, exist_ok=True)
     for stale in by_tag.glob("*.wav"):
         stale.unlink()
     for clip in clips:
         label = "intro" if clip.chunk_index < 0 else f"part{clip.chunk_index:02d}"
         link = by_tag / f"tag_{clip.seq:05d}_{label}.wav"
-        link.symlink_to(Path("..") / Path(clip.path).name)
+        link.symlink_to(os.path.relpath(clip.path, by_tag))
 
 
 @functools.cache

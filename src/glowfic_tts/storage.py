@@ -26,7 +26,9 @@ class Storage:
         self.coverage = coverage
         self.base = Path(root) / str(post_id)
         self.dir = self.base / coverage.slug()
-        self.audio_dir = self.dir / "05_audio"
+        # Clips are content-hashed, so the cache is shared across coverages: a
+        # bigger run reuses clips already synthesized for a smaller one.
+        self.audio_dir = self.base / "audio"
         self.output_path = self.dir / "output.mp3"
 
     # --- raw fetch cache ---
