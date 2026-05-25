@@ -8,6 +8,7 @@ only on a miss, write the artifact, move on (Review fix #4).
 from __future__ import annotations
 
 import subprocess
+import wave
 from pathlib import Path
 
 from . import stages
@@ -164,6 +165,65 @@ def run_tts(storage: Storage, provider: str = "say", api_key: str | None = None)
     manifest = AudioManifest(coverage=storage.coverage, post_id=storage.post_id, clips=clips)
     storage.save(manifest)
     return manifest
+
+
+def _wav_ms(path: Path) -> int:
+    with wave.open(str(path), "rb") as w:
+        return round(1000 * w.getnframes() / w.getframerate())
+
+
+def _ffmeta_escape(text: str) -> str:
+    for ch in ("\\", "=", ";", "#"):
+        text = text.replace(ch, "\\" + ch)
+    return text.replace("\n", " ")
+
+
+def run_chapters(storage: Storage) -> Path:
+    """Build one `.m4b` audiobook with a chapter per glowfic tag (reply), titled
+    `0012 Character: first words…`. Apple Books remembers position + lists chapters."""
+    manifest = storage.load_manifest()
+    lines = storage.load_lines()
+    ordered = sorted(manifest.clips, key=lambda c: (c.seq, c.chunk_index))
+
+    title_for: dict[int, str] = {}
+    for line in lines.lines:
+        if line.seq not in title_for:
+            words = " ".join(line.text.split())[:48]
+            title_for[line.seq] = f"{line.seq:04d} {line.voice_key}: {words}"
+
+    starts: dict[int, int] = {}
+    ends: dict[int, int] = {}
+    cursor = 0
+    listing = []
+    for clip in ordered:
+        path = Path(clip.path)
+        starts.setdefault(clip.seq, cursor)
+        cursor += _wav_ms(path)
+        ends[clip.seq] = cursor
+        listing.append(f"file '{path.resolve()}'")
+
+    meta = [";FFMETADATA1"]
+    for seq in sorted(starts):
+        meta += [
+            "[CHAPTER]",
+            "TIMEBASE=1/1000",
+            f"START={starts[seq]}",
+            f"END={ends[seq]}",
+            f"title={_ffmeta_escape(title_for.get(seq, str(seq)))}",
+        ]
+
+    list_path = storage.dir / "_concat.txt"
+    meta_path = storage.dir / "_chapters.txt"
+    list_path.write_text("\n".join(listing) + "\n")
+    meta_path.write_text("\n".join(meta) + "\n")
+    out = storage.dir / "output.m4b"
+    subprocess.run(
+        ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(list_path),
+         "-i", str(meta_path), "-map_metadata", "1", "-c:a", "aac", "-b:a", "128k", str(out)],
+        check=True,
+        capture_output=True,
+    )
+    return out
 
 
 def _ffmpeg_concat(clip_paths: list[Path], out: Path, list_path: Path) -> None:

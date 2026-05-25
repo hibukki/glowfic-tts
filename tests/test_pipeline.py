@@ -169,6 +169,26 @@ def test_concat_groups_into_files_by_reply_range(tmp_path):
     assert all(p.exists() and p.stat().st_size > 0 for p in outputs)
 
 
+def test_chapters_one_per_tag_with_titles(tmp_path):
+    storage = Storage(7, Coverage.of(2), root=tmp_path)
+    storage.audio_dir.mkdir(parents=True, exist_ok=True)
+    clips = []
+    for seq in range(2):
+        p = storage.audio_dir / f"clip{seq}.wav"
+        p.write_bytes(_tiny_wav())
+        clips.append(AudioClip(seq=seq, chunk_index=0, synthesis_key=str(seq), spec=_spec(str(seq)), path=str(p)))
+    storage.save(AudioManifest(coverage=storage.coverage, post_id=7, clips=clips))
+    storage.save(Lines(coverage=storage.coverage, post_id=7, lines=[
+        _line(0, "Alex", "Hello there friend."), _line(1, "Bea", "Reply text here."),
+    ]))
+
+    out = pipeline.run_chapters(storage)
+    assert out.exists() and out.suffix == ".m4b" and out.stat().st_size > 0
+    meta = (storage.dir / "_chapters.txt").read_text()
+    assert meta.count("[CHAPTER]") == 2
+    assert "title=0000 Alex: Hello there friend." in meta
+
+
 def _spec(text: str) -> SynthSpec:
     return SynthSpec(
         provider="say", model="say", voice=Voice(say=MacSayVoice(voice_name="Samantha")),

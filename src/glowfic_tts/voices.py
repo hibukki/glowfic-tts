@@ -73,19 +73,22 @@ _SAY_GENDER = {
 
 def installed_quality_say_voices_meta() -> list[dict]:
     out = subprocess.run(["say", "-v", "?"], capture_output=True, text=True, check=True).stdout
-    voices = []
+    best: dict[str, dict] = {}  # base name -> chosen variant (Premium beats Enhanced)
     for line in out.splitlines():
         m = _SAY_VOICE_LINE.match(line)
         if not (m and m.group(2).startswith("en") and ("premium" in line.lower() or "enhanced" in line.lower())):
             continue
         name = m.group(1).strip()
         base = name.split(" (")[0]
-        voices.append({
+        entry = {
             "name": name,
             "accent": _ACCENT_BY_LANG.get(m.group(2)[:5], m.group(2)),
             "gender": _SAY_GENDER.get(base, "?"),
-        })
-    return voices
+        }
+        current = best.get(base)
+        if current is None or ("Premium" in name and "Premium" not in current["name"]):
+            best[base] = entry
+    return list(best.values())
 
 GEMINI_VOICES: list[str] = [
     "Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede",

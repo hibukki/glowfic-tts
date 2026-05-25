@@ -28,6 +28,10 @@ def _build_parser() -> argparse.ArgumentParser:
             sp.add_argument("--api-key", default=None, help="Gemini key (else $GEMINI_API_KEY)")
         if step in ("concat", "all"):
             sp.add_argument("--group", type=int, default=None, help="one file per N replies")
+            sp.add_argument(
+                "--chapters", action="store_true",
+                help="emit a single output.m4b with a chapter per tag (open in Apple Books)",
+            )
     return parser
 
 
@@ -60,10 +64,14 @@ def main(argv: list[str] | None = None) -> None:
         manifest = pipeline.run_tts(storage, provider=provider, api_key=api_key)
         print(f"synthesized {len(manifest.clips)} clips via {provider} -> {storage.audio_dir}")
     if args.cmd in ("concat", "all"):
-        outputs = pipeline.run_concat(storage, group=getattr(args, "group", None))
-        print(f"done -> {len(outputs)} file(s):")
-        for path in outputs:
-            print(f"  {path}")
+        if getattr(args, "chapters", False):
+            out = pipeline.run_chapters(storage)
+            print(f"done -> {out}  (chaptered audiobook — open in Apple Books)")
+        else:
+            outputs = pipeline.run_concat(storage, group=getattr(args, "group", None))
+            print(f"done -> {len(outputs)} file(s):")
+            for path in outputs:
+                print(f"  {path}")
     if args.cmd == "cast":
         from .voices import installed_quality_say_voices_meta
 
