@@ -7,6 +7,7 @@ only on a miss, write the artifact, move on (Review fix #4).
 
 from __future__ import annotations
 
+import functools
 import subprocess
 import wave
 from collections import Counter
@@ -254,6 +255,14 @@ def _link_clips_by_tag(storage: Storage, clips: list[AudioClip]) -> None:
         link.symlink_to(Path("..") / Path(clip.path).name)
 
 
+@functools.cache
+def _aac_encoder() -> str:
+    """Apple's AudioToolbox AAC if available (best for Apple Books), else portable
+    native aac (Linux/CI have no aac_at)."""
+    encoders = subprocess.run(["ffmpeg", "-hide_banner", "-encoders"], capture_output=True, text=True).stdout
+    return "aac_at" if "aac_at" in encoders else "aac"
+
+
 def _wav_frames_rate(path: Path) -> tuple[int, int]:
     with wave.open(str(path), "rb") as w:
         return w.getnframes(), w.getframerate()
@@ -308,7 +317,7 @@ def run_chapters(storage: Storage) -> Path:
     subprocess.run(
         ["ffmpeg", "-y", "-i", str(combined), "-i", str(meta_path),
          "-map", "0:a", "-map_metadata", "1", "-map_chapters", "1",
-         "-ar", "44100", "-c:a", "aac_at", "-b:a", "64k", "-movflags", "+faststart", str(out)],
+         "-ar", "44100", "-c:a", _aac_encoder(), "-b:a", "64k", "-movflags", "+faststart", str(out)],
         check=True,
         capture_output=True,
     )
