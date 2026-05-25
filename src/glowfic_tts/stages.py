@@ -171,13 +171,20 @@ def make_voicemap(
 ) -> VoiceMap:
     """Assign a voice to every speaker, preserving choices the user already made.
 
-    Voices needing assignment go to the least-used option, so distinct speakers
-    get distinct voices until the pool runs out (then reuse is balanced). User
-    edits are kept, except a blacklisted `say` voice is reassigned to a clear one.
+    Speakers are cast most-central first (by word count) from a Premium-first pool,
+    so the biggest roles get the best voices; each unassigned speaker takes the
+    least-used option, so distinct speakers get distinct voices until the pool runs
+    out. User edits are kept, except a blacklisted `say` voice is reassigned.
     """
-    say_pool = [v for v in say_voices if v not in say_blacklist]
+    say_pool = sorted(
+        (v for v in say_voices if v not in say_blacklist),
+        key=lambda v: 0 if "Premium" in v else 1,
+    )
     prior = existing.voices if existing else {}
-    keys = sorted(script.speakers)
+    words: Counter[str] = Counter()
+    for chunk in script.chunks:
+        words[chunk.voice_key] += len(chunk.rich.plain().split())
+    keys = sorted(script.speakers, key=lambda k: (-words[k], k))
 
     kept_gemini: dict[str, GeminiVoice | None] = {}
     kept_say: dict[str, MacSayVoice | None] = {}
