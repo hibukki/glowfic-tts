@@ -7,7 +7,9 @@ authors = [
     { name = "Yonatan Cale", email = "myselfandfredy@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pydantic>=2.13.4",
+]
 
 [project.scripts]
 glowfic-tts = "glowfic_tts:main"
@@ -15,3 +17,8 @@ glowfic-tts = "glowfic_tts:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
