@@ -12,6 +12,7 @@ import os
 import subprocess
 import wave
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from . import stages
@@ -207,36 +208,38 @@ def _require_quality_say_voices(lines: Lines) -> None:
         )
 
 
-def run_tts(storage: Storage, provider: str = "say", api_key: str | None = None) -> AudioManifest:
+def run_tts(
+    storage: Storage, provider: str = "say", api_key: str | None = None, workers: int | None = None
+) -> AudioManifest:
     synth, model = _provider(provider, api_key)
     lines: Lines = storage.load_lines()
     if provider == "say":
         _require_quality_say_voices(lines)
     storage.audio_dir.mkdir(parents=True, exist_ok=True)
-
     sample_rate = SAY_SAMPLE_RATE if provider == "say" else GEMINI_SAMPLE_RATE
+
     clips = []
     for line in lines.lines:
         spec = SynthSpec(
-            provider=provider,
-            model=model,
-            voice=line.voice,
-            output_format="wav",
-            text=line.text,
-            params={"sample_rate": sample_rate},
+            provider=provider, model=model, voice=line.voice,
+            output_format="wav", text=line.text, params={"sample_rate": sample_rate},
         )
-        clip_path = storage.audio_dir / f"{spec.key()}.wav"
-        if not clip_path.exists():
-            clip_path.write_bytes(synth(spec))
         clips.append(
             AudioClip(
-                seq=line.seq,
-                chunk_index=line.chunk_index,
-                synthesis_key=spec.key(),
-                spec=spec,
-                path=str(clip_path),
+                seq=line.seq, chunk_index=line.chunk_index, synthesis_key=spec.key(),
+                spec=spec, path=str(storage.audio_dir / f"{spec.key()}.wav"),
             )
         )
+
+    # Synthesize only cache misses, deduped by path, in parallel.
+    todo = {clip.path: clip.spec for clip in clips if not Path(clip.path).exists()}
+    if todo:
+        if workers is None:
+            workers = min(8, os.cpu_count() or 4) if provider == "say" else 3
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            # list() so any synth exception surfaces instead of being swallowed.
+            list(pool.map(lambda item: Path(item[0]).write_bytes(synth(item[1])), todo.items()))
+
     _link_clips_by_tag(storage, clips)
     manifest = AudioManifest(coverage=storage.coverage, post_id=storage.post_id, clips=clips)
     storage.save(manifest)
