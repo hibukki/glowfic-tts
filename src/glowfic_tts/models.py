@@ -27,7 +27,9 @@ class Coverage(BaseModel):
 
     @classmethod
     def of(cls, limit: int | None) -> "Coverage":
-        return cls(kind="limit", limit=limit) if limit else cls(kind="full")
+        # `limit is None` (not falsy) so --limit 0 stays a limited run and never
+        # writes into the `full` path.
+        return cls(kind="full") if limit is None else cls(kind="limit", limit=limit)
 
 
 # --- rich text: preserves emphasis without forcing TTS to use it ---

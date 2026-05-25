@@ -30,7 +30,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> None:
-    args = _build_parser().parse_args(argv)
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    if args.limit is not None and args.limit < 1:
+        parser.error("--limit must be at least 1")
     storage = Storage(args.post_id, Coverage.of(args.limit))
     provider = getattr(args, "provider", "say")
     api_key = getattr(args, "api_key", None)
