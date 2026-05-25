@@ -186,7 +186,10 @@ def make_voicemap(
     for key in keys:
         old = prior.get(key)
         gemini = old.gemini if (old and old.gemini) else None
-        say = old.say if (old and old.say and old.say.voice_name not in say_blacklist) else None
+        # Keep a say voice only if it's a valid choice from the current pool, so
+        # already-good voices survive untouched (no needless audio regen) while
+        # stale/standard ones get reassigned.
+        say = old.say if (old and old.say and old.say.voice_name in say_pool) else None
         kept_gemini[key], kept_say[key] = gemini, say
         if gemini:
             used_gemini[gemini.voice_name] += 1
@@ -206,6 +209,10 @@ def make_voicemap(
             used_say[name] += 1
             say = MacSayVoice(voice_name=name)
         voices[key] = Voice(gemini=gemini, say=say, title=prior[key].title if key in prior else None)
+
+    # Don't drop characters from other coverages that share this voices.toml.
+    for key, voice in prior.items():
+        voices.setdefault(key, voice)
     return VoiceMap(voices=voices)
 
 

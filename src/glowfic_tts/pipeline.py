@@ -86,6 +86,28 @@ def run_bind(storage: Storage):
     return lines
 
 
+def casting_sheet(storage: Storage) -> list[dict]:
+    """Per character (in order of first appearance): who they are, their opening
+    line, and their current say voice — enough to cast a fitting voice by hand."""
+    script = storage.load_script()
+    voicemap = storage.load_voicemap()
+    first_line: dict[str, str] = {}
+    for chunk in script.chunks:
+        first_line.setdefault(chunk.voice_key, chunk.rich.plain())
+
+    rows = []
+    for voice_key, text in first_line.items():
+        speaker = script.speakers[voice_key]
+        entry = voicemap.voices.get(voice_key) if voicemap else None
+        rows.append({
+            "character": voice_key,
+            "screenname": speaker.screenname,
+            "current_say": entry.say.voice_name if (entry and entry.say) else None,
+            "first_line": " ".join(text.split())[:240],
+        })
+    return rows
+
+
 def _provider(provider: str, api_key: str | None) -> tuple[Synth, str]:
     """Return the synth callable and the model id that goes into the cache key."""
     if provider == "say":

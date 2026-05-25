@@ -13,7 +13,7 @@ from .api import GlowficClient
 from .models import Coverage
 from .storage import Storage
 
-_STEPS = ["fetch", "assemble", "extract", "voices", "bind", "tts", "concat", "all"]
+_STEPS = ["fetch", "assemble", "extract", "voices", "bind", "tts", "concat", "all", "cast"]
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -64,3 +64,14 @@ def main(argv: list[str] | None = None) -> None:
         print(f"done -> {len(outputs)} file(s):")
         for path in outputs:
             print(f"  {path}")
+    if args.cmd == "cast":
+        from .voices import installed_quality_say_voices_meta
+
+        print("## Characters (in order of first appearance)\n")
+        for row in pipeline.casting_sheet(storage):
+            screen = f" ~{row['screenname']}" if row["screenname"] else ""
+            print(f"- {row['character']}{screen}  [say: {row['current_say']}]")
+            print(f"    {row['first_line']}")
+        print("\n## Installed quality say voices (name | accent | gender)\n")
+        for voice in installed_quality_say_voices_meta():
+            print(f"- {voice['name']} | {voice['accent']} | {voice['gender']}")

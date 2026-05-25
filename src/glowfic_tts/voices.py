@@ -48,12 +48,39 @@ def installed_say_voices() -> list[str]:
 
 def installed_quality_say_voices() -> list[str]:
     """Installed English voices that are Enhanced or Premium (the clear ones)."""
+    return [v["name"] for v in installed_quality_say_voices_meta()]
+
+
+_ACCENT_BY_LANG = {
+    "en_US": "American", "en_GB": "British", "en_AU": "Australian",
+    "en_IN": "Indian", "en_IE": "Irish", "en_ZA": "South African",
+}
+
+# Genders aren't in `say -v '?'` (AVSpeechSynthesisVoice has them, but that needs
+# pyobjc). Curated by base voice name instead.
+_SAY_GENDER = {
+    "Allison": "F", "Ava": "F", "Evan": "M", "Joelle": "F", "Nathan": "M",
+    "Nicky": "F", "Noelle": "F", "Samantha": "F", "Susan": "F", "Tom": "M", "Zoe": "F",
+    "Daniel": "M", "Kate": "F", "Oliver": "M", "Serena": "F", "Stephanie": "F",
+    "Jamie": "M", "Fiona": "F", "Karen": "F", "Lee": "M", "Matilda": "F",
+    "Isha": "F", "Rishi": "M", "Veena": "F", "Sangeeta": "F", "Moira": "F", "Tessa": "F",
+}
+
+
+def installed_quality_say_voices_meta() -> list[dict]:
     out = subprocess.run(["say", "-v", "?"], capture_output=True, text=True, check=True).stdout
     voices = []
     for line in out.splitlines():
         m = _SAY_VOICE_LINE.match(line)
-        if m and m.group(2).startswith("en") and ("premium" in line.lower() or "enhanced" in line.lower()):
-            voices.append(m.group(1).strip())
+        if not (m and m.group(2).startswith("en") and ("premium" in line.lower() or "enhanced" in line.lower())):
+            continue
+        name = m.group(1).strip()
+        base = name.split(" (")[0]
+        voices.append({
+            "name": name,
+            "accent": _ACCENT_BY_LANG.get(m.group(2)[:5], m.group(2)),
+            "gender": _SAY_GENDER.get(base, "?"),
+        })
     return voices
 
 GEMINI_VOICES: list[str] = [
