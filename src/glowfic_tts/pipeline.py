@@ -281,13 +281,10 @@ def run_chapters(storage: Storage) -> Path:
     starts: dict[int, int] = {}
     ends: dict[int, int] = {}
     cursor = 0
-    listing = []
     for clip in ordered:
-        path = Path(clip.path)
         starts.setdefault(clip.seq, cursor)
-        cursor += _wav_ms(path)
+        cursor += _wav_ms(Path(clip.path))
         ends[clip.seq] = cursor
-        listing.append(f"file '{path.resolve()}'")
 
     meta = [";FFMETADATA1"]
     for seq in sorted(starts):
@@ -301,7 +298,7 @@ def run_chapters(storage: Storage) -> Path:
 
     meta_path = storage.dir / "_chapters.txt"
     meta_path.write_text("\n".join(meta) + "\n")
-    combined = _concat_to_wav([Path(c.path) for c in ordered], storage.dir / "_concat.txt")
+    combined = _concat_to_wav([Path(c.path) for c in ordered], storage.dir / "_combined.wav")
     out = storage.dir / "output.m4b"
     subprocess.run(
         ["ffmpeg", "-y", "-i", str(combined), "-i", str(meta_path),
@@ -313,21 +310,26 @@ def run_chapters(storage: Storage) -> Path:
     return out
 
 
-def _concat_to_wav(clip_paths: list[Path], list_path: Path) -> Path:
-    """Losslessly join clips into one gapless PCM WAV (sample-exact, no inter-clip
-    timestamp seams), so the downstream encoder sees a single continuous stream."""
-    list_path.write_text("".join(f"file '{p.resolve()}'\n" for p in clip_paths))
-    combined = list_path.with_suffix(".wav")
-    subprocess.run(
-        ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(list_path), "-c", "copy", str(combined)],
-        check=True,
-        capture_output=True,
-    )
+def _concat_to_wav(clip_paths: list[Path], combined: Path) -> Path:
+    """Join clips into one WAV by copying raw PCM frames (via the `wave` module),
+    not by stitching WAV containers in ffmpeg. `readframes` returns exactly the
+    audio samples regardless of any header quirks, so the result is a single clean
+    continuous stream — no inter-clip seams that a player could stumble on."""
+    with wave.open(str(clip_paths[0]), "rb") as first:
+        params = first.getparams()
+    fmt = (params.framerate, params.nchannels, params.sampwidth)
+    with wave.open(str(combined), "wb") as out:
+        out.setparams(params)
+        for path in clip_paths:
+            with wave.open(str(path), "rb") as clip:
+                if (clip.getframerate(), clip.getnchannels(), clip.getsampwidth()) != fmt:
+                    raise ValueError(f"{path} format {clip.getparams()} != {fmt}; can't concat")
+                out.writeframes(clip.readframes(clip.getnframes()))
     return combined
 
 
-def _ffmpeg_concat(clip_paths: list[Path], out: Path, list_path: Path) -> None:
-    combined = _concat_to_wav(clip_paths, list_path)
+def _ffmpeg_concat(clip_paths: list[Path], out: Path) -> None:
+    combined = _concat_to_wav(clip_paths, out.with_suffix(".combined.wav"))
     subprocess.run(["ffmpeg", "-y", "-i", str(combined), str(out)], check=True, capture_output=True)
     combined.unlink(missing_ok=True)
 
@@ -339,7 +341,7 @@ def run_concat(storage: Storage, group: int | None = None) -> list[Path]:
     ordered = sorted(manifest.clips, key=lambda c: (c.seq, c.chunk_index))
 
     if group is None:
-        _ffmpeg_concat([Path(c.path) for c in ordered], storage.output_path, storage.dir / "_concat.txt")
+        _ffmpeg_concat([Path(c.path) for c in ordered], storage.output_path)
         return [storage.output_path]
 
     buckets: dict[int, list] = {}
@@ -349,6 +351,6 @@ def run_concat(storage: Storage, group: int | None = None) -> list[Path]:
     outputs = []
     for _, clips in sorted(buckets.items()):
         out = storage.dir / f"output_seq_{clips[0].seq:04d}_to_{clips[-1].seq:04d}.mp3"
-        _ffmpeg_concat([Path(c.path) for c in clips], out, out.with_suffix(".concat.txt"))
+        _ffmpeg_concat([Path(c.path) for c in clips], out)
         outputs.append(out)
     return outputs

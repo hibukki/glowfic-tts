@@ -149,8 +149,23 @@ def test_concat_orders_clips_by_seq(tmp_path):
 
     outputs = pipeline.run_concat(storage)
     assert len(outputs) == 1 and outputs[0].exists() and outputs[0].stat().st_size > 0
-    listing = (storage.dir / "_concat.txt").read_text().splitlines()
-    assert listing[0].endswith("clip0.wav'") and listing[1].endswith("clip1.wav'")
+
+
+def test_concat_to_wav_sums_frames_and_rejects_mismatch(tmp_path):
+    a, b = tmp_path / "a.wav", tmp_path / "b.wav"
+    a.write_bytes(_tiny_wav())
+    b.write_bytes(_tiny_wav())
+    combined = pipeline._concat_to_wav([a, b], tmp_path / "out.wav")
+    with wave.open(str(a)) as wa, wave.open(str(combined)) as wc:
+        assert wc.getnframes() == 2 * wa.getnframes()
+        assert wc.getframerate() == wa.getframerate()
+
+    odd = tmp_path / "odd.wav"
+    with wave.open(str(odd), "wb") as w:  # different rate -> must refuse
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(44100)
+        w.writeframes(b"\x00\x00" * 100)
+    with pytest.raises(ValueError):
+        pipeline._concat_to_wav([a, odd], tmp_path / "bad.wav")
 
 
 def test_concat_groups_into_files_by_reply_range(tmp_path):
