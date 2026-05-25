@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+
+# Pipeline data (cached API responses + generated audio)
+data/
+
+# Secrets
+.env
