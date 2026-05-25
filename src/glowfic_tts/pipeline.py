@@ -212,27 +212,37 @@ def run_chapters(storage: Storage) -> Path:
             f"title={_ffmeta_escape(title_for.get(seq, str(seq)))}",
         ]
 
-    list_path = storage.dir / "_concat.txt"
     meta_path = storage.dir / "_chapters.txt"
-    list_path.write_text("\n".join(listing) + "\n")
     meta_path.write_text("\n".join(meta) + "\n")
+    combined = _concat_to_wav([Path(c.path) for c in ordered], storage.dir / "_concat.txt")
     out = storage.dir / "output.m4b"
     subprocess.run(
-        ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(list_path),
-         "-i", str(meta_path), "-map_metadata", "1", "-c:a", "aac", "-b:a", "128k", str(out)],
+        ["ffmpeg", "-y", "-i", str(combined), "-i", str(meta_path),
+         "-map_metadata", "1", "-c:a", "aac", "-b:a", "128k", str(out)],
         check=True,
         capture_output=True,
     )
+    combined.unlink(missing_ok=True)
     return out
 
 
-def _ffmpeg_concat(clip_paths: list[Path], out: Path, list_path: Path) -> None:
+def _concat_to_wav(clip_paths: list[Path], list_path: Path) -> Path:
+    """Losslessly join clips into one gapless PCM WAV (sample-exact, no inter-clip
+    timestamp seams), so the downstream encoder sees a single continuous stream."""
     list_path.write_text("".join(f"file '{p.resolve()}'\n" for p in clip_paths))
+    combined = list_path.with_suffix(".wav")
     subprocess.run(
-        ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(list_path), str(out)],
+        ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(list_path), "-c", "copy", str(combined)],
         check=True,
         capture_output=True,
     )
+    return combined
+
+
+def _ffmpeg_concat(clip_paths: list[Path], out: Path, list_path: Path) -> None:
+    combined = _concat_to_wav(clip_paths, list_path)
+    subprocess.run(["ffmpeg", "-y", "-i", str(combined), str(out)], check=True, capture_output=True)
+    combined.unlink(missing_ok=True)
 
 
 def run_concat(storage: Storage, group: int | None = None) -> list[Path]:
