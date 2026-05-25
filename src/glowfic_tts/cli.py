@@ -75,10 +75,10 @@ def main(argv: list[str] | None = None) -> None:
     if args.cmd == "cast":
         from .voices import installed_quality_say_voices_meta
 
-        print("## Characters (in order of first appearance)\n")
+        print("## Characters (most central first)\n")
         for row in pipeline.casting_sheet(storage):
             screen = f" ~{row['screenname']}" if row["screenname"] else ""
-            print(f"- {row['character']}{screen}  [say: {row['current_say']}]")
+            print(f"- {row['character']}{screen}  [{row['tags']} tags, {row['words']} words]  [say: {row['current_say']}]")
             print(f"    {row['first_line']}")
         print("\n## Installed quality say voices (name | accent | gender)\n")
         for voice in installed_quality_say_voices_meta():

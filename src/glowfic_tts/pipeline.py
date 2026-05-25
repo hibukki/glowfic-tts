@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import subprocess
 import wave
+from collections import Counter
 from pathlib import Path
 
 from . import stages
@@ -90,13 +91,19 @@ def run_bind(storage: Storage):
 
 
 def casting_sheet(storage: Storage) -> list[dict]:
-    """Per character (in order of first appearance): who they are, their opening
-    line, and their current say voice — enough to cast a fitting voice by hand."""
+    """Per character: centrality (tags spoken + word count), opening line, and
+    current say voice — sorted most-central first, to cast (and budget Premium
+    voices) by importance."""
     script = storage.load_script()
     voicemap = storage.load_voicemap()
     first_line: dict[str, str] = {}
+    tags: dict[str, set[int]] = {}
+    words: Counter[str] = Counter()
     for chunk in script.chunks:
-        first_line.setdefault(chunk.voice_key, chunk.rich.plain())
+        text = chunk.rich.plain()
+        first_line.setdefault(chunk.voice_key, text)
+        tags.setdefault(chunk.voice_key, set()).add(chunk.seq)
+        words[chunk.voice_key] += len(text.split())
 
     rows = []
     for voice_key, text in first_line.items():
@@ -105,9 +112,12 @@ def casting_sheet(storage: Storage) -> list[dict]:
         rows.append({
             "character": voice_key,
             "screenname": speaker.screenname,
+            "tags": len(tags[voice_key]),
+            "words": words[voice_key],
             "current_say": entry.say.voice_name if (entry and entry.say) else None,
-            "first_line": " ".join(text.split())[:240],
+            "first_line": " ".join(text.split())[:160],
         })
+    rows.sort(key=lambda r: r["words"], reverse=True)
     return rows
 
 
