@@ -51,5 +51,5 @@ uv run glowfic-tts cast <post_id> --write   # -> data/{post_id}/casting.md
   [`voices.py`](../src/glowfic_tts/voices.py).
 - `say -v '?'` does **not** expose gender (we keep a curated map); the language
   code gives the accent.
-- To debug a specific tag's audio, browse `data/{post}/{coverage}/05_audio/by_tag/`
-  (`tag_00111_part00.wav`).
+- To debug a specific tag's audio, browse `data/{post}/{coverage}/by_tag/`
+  (`tag_00111_part00.wav`); clips themselves live in the shared `data/{post}/audio/`.
