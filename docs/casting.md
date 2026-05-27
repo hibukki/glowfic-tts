@@ -30,18 +30,18 @@ How to give each glowfic character a voice that fits. This is the **process**
 ## Workflow
 
 ```bash
-# 1. Rank characters + see the installed voices (accent | gender):
 uv run glowfic-tts cast <post_id>
-
-# 2. Write the editable sheet (centrality, icon URLs, openings, art slots):
-uv run glowfic-tts cast <post_id> --write   # -> data/{post_id}/casting.md
 ```
 
-3. For the central characters, open each `icon:` URL, then fill the
+This writes `data/{post_id}/casting.md` — characters most-central first, each with
+its **art previewed inline** (icons are downloaded to `data/{post_id}/icons/`), the
+opening line, current voice, and the available voices at the bottom.
+
+1. Open it in a Markdown previewer and, for the central characters, fill each
    `art/gender:` line (gender + a one-line description). These notes are
-   **preserved** when you re-run `cast --write`.
-4. Set voices in `data/{post_id}/voices.toml` (gender-appropriate; Premium for the
-   most central), then re-run `bind` → `tts` → `concat`.
+   **preserved** when you re-run `cast`.
+2. Set voices in `data/{post_id}/voices.toml` (gender-appropriate; Premium for the
+   most central), then build with `glowfic-tts all <post_id> --chapters`.
 
 ## Voice facts
 

@@ -23,8 +23,6 @@ def _build_parser() -> argparse.ArgumentParser:
         sp = sub.add_parser(step)
         sp.add_argument("post_id", type=int)
         sp.add_argument("--limit", type=int, default=None, help="only the first N replies")
-        if step == "cast":
-            sp.add_argument("--write", action="store_true", help="write data/{post}/casting.md")
         if step in ("tts", "all"):
             sp.add_argument("--provider", default="say", choices=["say", "gemini"])
             sp.add_argument("--api-key", default=None, help="Gemini key (else $GEMINI_API_KEY)")
@@ -78,15 +76,8 @@ def main(argv: list[str] | None = None) -> None:
             for path in outputs:
                 print(f"  {path}")
     if args.cmd == "cast":
-        from .voices import installed_quality_say_voices_meta
-
-        print("## Characters (most central first)\n")
-        for row in pipeline.casting_sheet(storage):
-            screen = f" ~{row['screenname']}" if row["screenname"] else ""
-            print(f"- {row['character']}{screen}  [{row['tags']} tags, {row['words']} words]  [say: {row['current_say']}]")
-            print(f"    {row['first_line']}")
-        print("\n## Installed quality say voices (name | accent | gender)\n")
-        for voice in installed_quality_say_voices_meta():
-            print(f"- {voice['name']} | {voice['accent']} | {voice['gender']}")
-        if getattr(args, "write", False):
-            print(f"\nwrote {pipeline.write_casting_doc(storage)}")
+        out = pipeline.write_casting_doc(storage)
+        print(f"wrote {out}")
+        print("Open it — it previews each character's art (most central first). Note each")
+        print(f"one's gender/vibe in the art/gender lines, set voices in {storage.voices_path},")
+        print(f"then build it:  glowfic-tts all {args.post_id} --chapters")

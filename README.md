@@ -15,7 +15,7 @@ uv sync
 ## Use
 
 ```bash
-uv run glowfic-tts cast <post_id> --write    # who's in it; pick voices
+uv run glowfic-tts cast <post_id>            # who's in it; pick voices
 uv run glowfic-tts all  <post_id> --chapters # build the audiobook
 ```
 
