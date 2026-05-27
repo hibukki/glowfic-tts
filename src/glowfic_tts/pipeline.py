@@ -8,6 +8,7 @@ only on a miss, write the artifact, move on (Review fix #4).
 from __future__ import annotations
 
 import functools
+import hashlib
 import os
 import re
 import subprocess
@@ -155,7 +156,9 @@ def _download_icons(storage: Storage, urls: dict[str, str]) -> dict[str, str]:
         for key, url in urls.items():
             ext = os.path.splitext(url.split("?")[0])[1] or ".png"
             slug = re.sub(r"[^\w-]+", "_", key).strip("_")
-            path = icons_dir / f"{slug}{ext}"
+            # hash the key so distinct characters never collide on a shared slug
+            digest = hashlib.sha1(key.encode()).hexdigest()[:8]
+            path = icons_dir / f"{slug}_{digest}{ext}"
             if not path.exists():
                 response = client.get(url)
                 response.raise_for_status()
