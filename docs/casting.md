@@ -1,8 +1,9 @@
 # Casting characters to voices
 
 How to give each glowfic character a voice that fits. This is the **process**
-(no spoilers); the per-character decisions for a specific post live in
-`data/{post_id}/casting.md` (gitignored, so spoilers stay off the repo).
+(no spoilers); the per-post casting sheet — the info you draw on to choose
+voices — lives in `data/{post_id}/casting.md` (gitignored, so spoilers stay off
+the repo).
 
 ## Signals we use
 
