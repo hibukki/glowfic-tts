@@ -1,10 +1,10 @@
 [project]
 name = "glowfic-tts"
 version = "0.1.0"
-description = "Add your description here"
+description = "Turn a glowfic post into a multi-voice audiobook — each character gets its own voice."
 readme = "README.md"
 authors = [
-    { name = "Yonatan Cale", email = "myselfandfredy@gmail.com" }
+    { name = "Yonatan Cale" }
 ]
 requires-python = ">=3.12"
 dependencies = [
