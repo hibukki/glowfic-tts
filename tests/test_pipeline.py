@@ -70,6 +70,20 @@ def test_fetch_respects_limit_and_caches(tmp_path):
     assert client.post_calls == 0 and client.page_calls == []
 
 
+def test_cast_runs_its_prerequisites_from_scratch(tmp_path):
+    # The README presents `cast` as the first command; it must work from an empty
+    # data dir by running fetch->assemble->extract->voices itself (no manual chain).
+    storage = Storage(7, Coverage.of(None), root=tmp_path)
+    client = FakeClient(_post(), [[_reply(i) for i in range(1, 4)]])
+
+    pipeline.ensure_casting_inputs(storage, client=client)
+    out = pipeline.write_casting_doc(storage)
+
+    assert out.exists()  # casting.md written, no FileNotFoundError
+    assert storage.voices_path.exists()  # voices.toml created, so there's something to edit
+    assert out.read_text().lstrip().startswith("# Casting")
+
+
 def test_coverage_isolation_paths_differ(tmp_path):
     assert Storage(7, Coverage.of(None), root=tmp_path).dir != Storage(7, Coverage.of(25), root=tmp_path).dir
 

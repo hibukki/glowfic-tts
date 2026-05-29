@@ -76,6 +76,8 @@ def main(argv: list[str] | None = None) -> None:
             for path in outputs:
                 print(f"  {path}")
     if args.cmd == "cast":
+        print(f"preparing post {args.post_id} (fetch/assemble/extract/voices; cached after the first run)…")
+        pipeline.ensure_casting_inputs(storage)
         out = pipeline.write_casting_doc(storage)
         print(f"wrote {out}")
         print("Open it — it previews each character's art (most central first). Note each")

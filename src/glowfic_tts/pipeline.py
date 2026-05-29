@@ -14,6 +14,7 @@ import re
 import subprocess
 import wave
 from collections import Counter
+from contextlib import nullcontext
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -96,6 +97,21 @@ def run_bind(storage: Storage):
     lines = stages.bind(storage.load_script(), voicemap)
     storage.save(lines)
     return lines
+
+
+def ensure_casting_inputs(storage: Storage, client: GlowficClient | None = None) -> None:
+    """Run every step `cast` reads from (fetch -> assemble -> extract -> voices).
+
+    Each step owns its own caching/recompute (fetch hits the network only on a
+    miss; the rest are sub-second pure transforms), so this is cheap on re-runs
+    and `cast` never has to know where intermediate artifacts live. Pass `client`
+    to reuse/inject one (tests); otherwise we open and close our own.
+    """
+    with (nullcontext(client) if client else GlowficClient()) as c:
+        run_fetch(storage, c, storage.post_id, storage.coverage.limit)
+    run_assemble(storage)
+    run_extract(storage)
+    run_voices(storage)
 
 
 def casting_sheet(storage: Storage) -> list[dict]:
