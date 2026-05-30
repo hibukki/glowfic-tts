@@ -117,14 +117,18 @@ def ensure_casting_inputs(storage: Storage, client: GlowficClient | None = None)
     and `cast` never has to know where intermediate artifacts live. Pass `client`
     to reuse/inject one (tests); otherwise we open and close our own.
 
-    Casting tolerates missing genders so the preview (the thing you read to fix
-    them) always gets written; the build is where missing genders fail loudly.
+    voices.toml is persisted only when the post is fully castable; a half-cast map
+    must not exist for `bind`/`tts` to trust. The preview (the thing you read to fix
+    genders) is still written by the caller, and the build fails loudly on what's left.
     """
     with (nullcontext(client) if client else GlowficClient()) as c:
         run_fetch(storage, c, storage.post_id, storage.coverage.limit)
     run_assemble(storage)
     run_extract(storage)
-    run_voices(storage, allow_missing=True)
+    try:
+        run_voices(storage)
+    except stages.CastingError:
+        pass
 
 
 def casting_sheet(storage: Storage) -> list[dict]:

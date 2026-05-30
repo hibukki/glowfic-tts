@@ -4,7 +4,7 @@ import wave
 import pytest
 
 from glowfic_tts import pipeline
-from glowfic_tts.api import PageMeta, RawApiPost, RawApiReply, RawUser
+from glowfic_tts.api import PageMeta, RawApiPost, RawApiReply, RawCharacter, RawUser
 from glowfic_tts.models import (
     AudioClip,
     AudioManifest,
@@ -80,8 +80,24 @@ def test_cast_runs_its_prerequisites_from_scratch(tmp_path):
     out = pipeline.write_casting_doc(storage)
 
     assert out.exists()  # casting preview written, no FileNotFoundError
-    assert storage.voices_path.exists()  # voices.toml created, so there's something to edit
+    assert storage.voices_path.exists()  # voices.toml created (post is fully castable)
     assert out.read_text().lstrip().startswith("# Casting")
+
+
+def test_cast_holds_off_voices_when_a_gender_is_unknown(tmp_path):
+    # A character with no gender in genders.py: cast still previews, but must NOT
+    # persist a half-cast voices.toml that bind/tts would then trust.
+    storage = Storage(8, Coverage.of(None), root=tmp_path)
+    stranger = RawApiReply(
+        id=1, content="<p>hi</p>",
+        character=RawCharacter(id=1, name="Nobody In Genders Py"),
+        user=RawUser(username="u"),
+    )
+    pipeline.ensure_casting_inputs(storage, client=FakeClient(_post(), [[stranger]]))
+
+    assert pipeline.write_casting_doc(storage).exists()
+    assert "Nobody In Genders Py" in pipeline.unknown_gender_speakers(storage)
+    assert not storage.voices_path.exists()
 
 
 def test_coverage_isolation_paths_differ(tmp_path):
