@@ -168,7 +168,10 @@ def _download_icons(storage: Storage, urls: dict[str, str]) -> dict[str, str]:
     icons_dir = storage.base / "icons"
     icons_dir.mkdir(parents=True, exist_ok=True)
     rel: dict[str, str] = {}
-    with httpx.Client(headers={"User-Agent": DEFAULT_USER_AGENT}, timeout=30) as client:
+    # follow_redirects: icon URLs are arbitrary third-party hosts (302s are normal)
+    with httpx.Client(
+        headers={"User-Agent": DEFAULT_USER_AGENT}, timeout=30, follow_redirects=True
+    ) as client:
         for key, url in urls.items():
             ext = os.path.splitext(url.split("?")[0])[1] or ".png"
             slug = re.sub(r"[^\w-]+", "_", key).strip("_")
@@ -176,8 +179,13 @@ def _download_icons(storage: Storage, urls: dict[str, str]) -> dict[str, str]:
             digest = hashlib.sha1(key.encode()).hexdigest()[:8]
             path = icons_dir / f"{slug}_{digest}{ext}"
             if not path.exists():
-                response = client.get(url)
-                response.raise_for_status()
+                try:
+                    response = client.get(url)
+                    response.raise_for_status()
+                except httpx.HTTPError as e:
+                    # art is a casting preview only; one dead host shouldn't sink the post
+                    print(f"  skipped icon for {key}: {e}")
+                    continue
                 path.write_bytes(response.content)
             rel[key] = f"icons/{path.name}"
     return rel
