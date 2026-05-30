@@ -11,7 +11,7 @@ import argparse
 from . import pipeline
 from .api import GlowficClient
 from .models import Coverage
-from .stages import MissingGenders
+from .stages import CastingError
 from .storage import Storage
 
 _STEPS = ["fetch", "assemble", "extract", "voices", "bind", "tts", "concat", "all", "cast"]
@@ -66,7 +66,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.cmd in ("voices", "all"):
         try:
             voicemap = pipeline.run_voices(storage, allow_missing=args.dangerously_naive_autocast)
-        except MissingGenders as e:
+        except CastingError as e:
             print(f"✋ autocast stopped — {e}")
             print(f"   preview (art + opening lines): {pipeline.write_casting_doc(storage)}")
             print("   ...or build anyway with --dangerously-naive-autocast.")

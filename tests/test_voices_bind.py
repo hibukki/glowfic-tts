@@ -1,7 +1,14 @@
 import pytest
 
 from glowfic_tts.models import GeminiVoice, MacSayVoice, Voice, VoiceMap
-from glowfic_tts.stages import MissingGenders, assemble, bind, extract, make_voicemap
+from glowfic_tts.stages import (
+    MissingGenders,
+    NoGenderedVoice,
+    assemble,
+    bind,
+    extract,
+    make_voicemap,
+)
 from glowfic_tts.voices import say_voice_gender
 
 
@@ -77,6 +84,26 @@ def test_known_gender_gets_a_matching_voice(raw_post):
     genders[key] = "M"
     vm = make_voicemap(script, genders)
     assert say_voice_gender(vm.voices[key].say.voice_name) == "M"
+
+
+def test_no_installed_voice_for_gender_fails_loud(raw_post):
+    script = extract(assemble(raw_post))
+    key = sorted(script.speakers)[0]
+    genders = _n(script)
+    genders[key] = "M"
+    female_only = ["Samantha", "Karen", "Moira", "Tessa"]  # all F in _SAY_GENDER
+    with pytest.raises(NoGenderedVoice) as exc:
+        make_voicemap(script, genders, say_voices=female_only)
+    assert key in exc.value.by_gender["M"]
+
+
+def test_naive_autocast_substitutes_when_no_gendered_voice(raw_post):
+    script = extract(assemble(raw_post))
+    key = sorted(script.speakers)[0]
+    genders = _n(script)
+    genders[key] = "M"
+    vm = make_voicemap(script, genders, say_voices=["Samantha", "Karen"], allow_missing=True)
+    assert set(vm.voices) == set(script.speakers)  # falls back instead of raising
 
 
 def test_bind_resolves_each_chunk_to_its_voice(raw_post):

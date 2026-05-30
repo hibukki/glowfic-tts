@@ -25,7 +25,14 @@ from .models import (
     Voice,
     VoiceMap,
 )
-from .voices import GEMINI_VOICES, MAC_SAY_BLACKLIST, MAC_SAY_VOICES, say_voice_gender
+from .genders import is_known_gender
+from .voices import (
+    GEMINI_VOICES,
+    MAC_SAY_BLACKLIST,
+    MAC_SAY_VOICES,
+    SAY_INSTALL_HELP,
+    say_voice_gender,
+)
 
 # Conservative vs the Gemini TTS input limit; confirm the real cap when wiring tts.
 DEFAULT_MAX_CHARS = 3000
@@ -163,7 +170,11 @@ def extract(story: Story, max_chars: int = DEFAULT_MAX_CHARS) -> Script:
     )
 
 
-class MissingGenders(Exception):
+class CastingError(Exception):
+    """Autocast can't cast safely; --dangerously-naive-autocast overrides."""
+
+
+class MissingGenders(CastingError):
     """Speakers with no gender in genders.py — autocast refuses to guess one."""
 
     def __init__(self, names: list[str]):
@@ -172,6 +183,15 @@ class MissingGenders(Exception):
             "no gender for: " + ", ".join(names) + ". Add them to CHARACTER_GENDERS "
             "in genders.py (the casting preview shows each one's art + opening line)."
         )
+
+
+class NoGenderedVoice(CastingError):
+    """A speaker's gender has no installed `say` voice — won't substitute the wrong one."""
+
+    def __init__(self, by_gender: dict[str, list[str]]):
+        self.by_gender = by_gender
+        detail = "; ".join(f"{g}: {', '.join(sorted(ns))}" for g, ns in sorted(by_gender.items()))
+        super().__init__(f"no installed `say` voice for: {detail}.\n{SAY_INSTALL_HELP}")
 
 
 def make_voicemap(
@@ -191,10 +211,11 @@ def make_voicemap(
     speakers get distinct voices until the pool runs out. User edits are kept,
     except a blacklisted `say` voice is reassigned.
 
-    Raises MissingGenders (unless allow_missing) when a speaker has no 'M'/'F'/'N'.
+    Raises (unless allow_missing) MissingGenders when a speaker has no 'M'/'F'/'N',
+    or NoGenderedVoice when a known gender has no installed `say` voice.
     """
     keys_all = list(script.speakers)
-    unknown = sorted(k for k in keys_all if genders.get(k) not in ("M", "F", "N"))
+    unknown = sorted(k for k in keys_all if not is_known_gender(genders.get(k)))
     if unknown and not allow_missing:
         raise MissingGenders(unknown)
 
@@ -229,6 +250,7 @@ def make_voicemap(
         if say:
             used_say[say.voice_name] += 1
 
+    no_voice: dict[str, list[str]] = {}  # gender -> speakers whose gender has no voice
     voices: dict[str, Voice] = {}
     for key in keys:
         gemini = kept_gemini[key]
@@ -238,8 +260,11 @@ def make_voicemap(
             gemini = GeminiVoice(voice_name=name)
         say = kept_say[key]
         if say is None:
-            pool = say_by_gender.get(genders.get(key)) or say_pool
-            name = min(pool, key=lambda v: used_say[v])
+            gender = genders.get(key)
+            pool = say_by_gender.get(gender)
+            if gender in ("M", "F") and not pool:
+                no_voice.setdefault(gender, []).append(key)
+            name = min(pool or say_pool, key=lambda v: used_say[v])
             used_say[name] += 1
             say = MacSayVoice(voice_name=name)
         # Start from the prior entry so unrelated provider edits (e.g. elevenlabs)
@@ -248,6 +273,8 @@ def make_voicemap(
         voice.gemini = gemini
         voice.say = say
         voices[key] = voice
+    if no_voice and not allow_missing:
+        raise NoGenderedVoice(no_voice)
 
     # Don't drop characters from other coverages that share this voices.toml.
     for key, voice in prior.items():

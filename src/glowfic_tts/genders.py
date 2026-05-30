@@ -24,8 +24,23 @@ CHARACTER_GENDERS: dict[str, str] = {
 }
 
 
+VALID_GENDERS = ("M", "F", "N")
+
+
+def is_known_gender(value: str | None) -> bool:
+    return value in VALID_GENDERS
+
+
 def character_gender(speaker: Speaker) -> str | None:
-    """'M'/'F'/'N', or None when the character isn't in CHARACTER_GENDERS yet."""
-    if not speaker.character_name:
-        return "N"  # author OOC / pure narration: no character, no gender to pick
-    return CHARACTER_GENDERS.get(speaker.character_name.strip().lower())
+    """'M'/'F'/'N', or None when this character isn't in CHARACTER_GENDERS yet.
+
+    Keys are lowercased character names (or screennames) — i.e. the lowercased
+    voice_key of a character-bearing speaker. A speaker with no character identity
+    at all (author OOC / pure narration) is 'N': there's no one to gender.
+    """
+    for name in (speaker.character_name, speaker.screenname):
+        if name and name.strip().lower() in CHARACTER_GENDERS:
+            return CHARACTER_GENDERS[name.strip().lower()]
+    if not speaker.character_name and not speaker.screenname:
+        return "N"
+    return None

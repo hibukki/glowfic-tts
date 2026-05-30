@@ -22,7 +22,7 @@ import httpx
 
 from . import stages
 from .api import DEFAULT_USER_AGENT, GlowficClient, RawPost
-from .genders import character_gender
+from .genders import character_gender, is_known_gender
 from .models import AudioClip, AudioManifest, Lines, SynthSpec
 from .storage import Storage
 from .tts import Synth, make_gemini_synth, synth_say
@@ -97,7 +97,7 @@ def run_voices(storage: Storage, allow_missing: bool = False):
 def unknown_gender_speakers(storage: Storage) -> list[str]:
     """Speakers with no gender in genders.py (the casting worklist)."""
     script = storage.load_script()
-    return sorted(k for k, sp in script.speakers.items() if character_gender(sp) is None)
+    return sorted(k for k, sp in script.speakers.items() if not is_known_gender(character_gender(sp)))
 
 
 def run_bind(storage: Storage):
@@ -229,7 +229,7 @@ def write_casting_doc(storage: Storage) -> Path:
             f"## {row['character']}{screen}",
             f"![]({icon})" if icon else "_(no icon)_",
             f"- central: {row['tags']} tags, {row['words']} words",
-            f"- gender: {row['gender'] or 'UNKNOWN — add to genders.py'}",
+            f"- gender: {row['gender'] if is_known_gender(row['gender']) else 'UNKNOWN — add to genders.py'}",
             f"- voice: {row['current_say'] or '(unassigned)'}",
             f"- opening: {openings.get(row['character'], '')}",
             "",
