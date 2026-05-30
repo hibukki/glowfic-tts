@@ -11,6 +11,7 @@ import argparse
 from . import pipeline
 from .api import GlowficClient
 from .models import Coverage
+from .stages import MissingGenders
 from .storage import Storage
 
 _STEPS = ["fetch", "assemble", "extract", "voices", "bind", "tts", "concat", "all", "cast"]
@@ -27,6 +28,11 @@ def _build_parser() -> argparse.ArgumentParser:
             sp.add_argument("--provider", default="say", choices=["say", "gemini"])
             sp.add_argument("--api-key", default=None, help="Gemini key (else $GEMINI_API_KEY)")
             sp.add_argument("--workers", type=int, default=None, help="parallel synthesis workers")
+        if step in ("voices", "all"):
+            sp.add_argument(
+                "--dangerously-naive-autocast", action="store_true",
+                help="assign voices even for characters with no gender in genders.py",
+            )
         if step in ("concat", "all"):
             sp.add_argument("--group", type=int, default=None, help="one file per N replies")
             sp.add_argument(
@@ -58,7 +64,13 @@ def main(argv: list[str] | None = None) -> None:
         script = pipeline.run_extract(storage)
         print(f"extracted {len(script.chunks)} chunks for {len(script.speakers)} speakers")
     if args.cmd in ("voices", "all"):
-        voicemap = pipeline.run_voices(storage)
+        try:
+            voicemap = pipeline.run_voices(storage, allow_missing=args.dangerously_naive_autocast)
+        except MissingGenders as e:
+            print(f"✋ autocast stopped — {e}")
+            print(f"   preview (art + opening lines): {pipeline.write_casting_doc(storage)}")
+            print("   ...or build anyway with --dangerously-naive-autocast.")
+            raise SystemExit(1)
         print(f"voice map ({len(voicemap.voices)} speakers) -> {storage.voices_path}")
     if args.cmd in ("bind", "all"):
         lines = pipeline.run_bind(storage)
@@ -80,6 +92,11 @@ def main(argv: list[str] | None = None) -> None:
         pipeline.ensure_casting_inputs(storage)
         out = pipeline.write_casting_doc(storage)
         print(f"wrote {out}")
-        print("Open it — it previews each character's art (most central first). Note each")
-        print(f"one's gender/vibe in the art/gender lines, set voices in {storage.voices_path},")
-        print(f"then build it:  glowfic-tts all {args.post_id} --chapters")
+        missing = pipeline.unknown_gender_speakers(storage)
+        if missing:
+            print("\n⚠️  No gender in genders.py for: " + ", ".join(missing))
+            print("   Open the preview for each one's art + opening line, add them to")
+            print("   CHARACTER_GENDERS in genders.py, then build it.")
+        else:
+            print("Open the preview to check the casting, then build it:")
+        print(f"  glowfic-tts all {args.post_id} --chapters")

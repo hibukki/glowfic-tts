@@ -22,6 +22,7 @@ import httpx
 
 from . import stages
 from .api import DEFAULT_USER_AGENT, GlowficClient, RawPost
+from .genders import character_gender
 from .models import AudioClip, AudioManifest, Lines, SynthSpec
 from .storage import Storage
 from .tts import Synth, make_gemini_synth, synth_say
@@ -79,15 +80,24 @@ def run_extract(storage: Storage):
     return script
 
 
-def run_voices(storage: Storage):
+def run_voices(storage: Storage, allow_missing: bool = False):
     # Prefer installed Enhanced/Premium voices; fall back to the standard list so
     # the map still generates (e.g. for gemini-only use). `say` tts enforces quality.
     say_voices = installed_quality_say_voices() or MAC_SAY_VOICES
+    script = storage.load_script()
+    genders = {key: character_gender(sp) for key, sp in script.speakers.items()}
     voicemap = stages.make_voicemap(
-        storage.load_script(), existing=storage.load_voicemap(), say_voices=say_voices
+        script, genders, existing=storage.load_voicemap(),
+        say_voices=say_voices, allow_missing=allow_missing,
     )
     storage.save_voicemap(voicemap)
     return voicemap
+
+
+def unknown_gender_speakers(storage: Storage) -> list[str]:
+    """Speakers with no gender in genders.py (the casting worklist)."""
+    script = storage.load_script()
+    return sorted(k for k, sp in script.speakers.items() if character_gender(sp) is None)
 
 
 def run_bind(storage: Storage):
@@ -106,12 +116,15 @@ def ensure_casting_inputs(storage: Storage, client: GlowficClient | None = None)
     miss; the rest are sub-second pure transforms), so this is cheap on re-runs
     and `cast` never has to know where intermediate artifacts live. Pass `client`
     to reuse/inject one (tests); otherwise we open and close our own.
+
+    Casting tolerates missing genders so the preview (the thing you read to fix
+    them) always gets written; the build is where missing genders fail loudly.
     """
     with (nullcontext(client) if client else GlowficClient()) as c:
         run_fetch(storage, c, storage.post_id, storage.coverage.limit)
     run_assemble(storage)
     run_extract(storage)
-    run_voices(storage)
+    run_voices(storage, allow_missing=True)
 
 
 def casting_sheet(storage: Storage) -> list[dict]:
@@ -138,6 +151,7 @@ def casting_sheet(storage: Storage) -> list[dict]:
             "screenname": speaker.screenname,
             "tags": len(tags[voice_key]),
             "words": words[voice_key],
+            "gender": character_gender(speaker),
             "current_say": entry.say.voice_name if (entry and entry.say) else None,
             "first_line": " ".join(text.split())[:160],
         })
@@ -192,58 +206,39 @@ def _download_icons(storage: Storage, urls: dict[str, str]) -> dict[str, str]:
 
 
 def write_casting_doc(storage: Storage) -> Path:
-    """Write a per-post casting sheet to data/{post}/casting.md (gitignored, so
-    spoilers stay off the repo). Everything for casting lives here: centrality,
-    the downloaded art (previewed inline), opening lines, current voice, and the
-    available voices. Hand-written art/gender notes are preserved on re-runs."""
+    """Write a throwaway casting preview (art + opening line + assigned voice, most
+    central first) to data/{post}/casting-preview.md. Regenerated every run, never
+    a source of truth: gender lives in genders.py, voices in voices.toml."""
     rows = casting_sheet(storage)
     icons = _download_icons(storage, _icon_urls_by_voice_key(storage))
     openings: dict[str, str] = {}
     for chunk in storage.load_script().chunks:
         openings.setdefault(chunk.voice_key, " ".join(chunk.rich.plain().split())[:400])
 
-    out = storage.base / "casting.md"
-    prior_art = _existing_art_notes(out)
-
     lines = [
-        f"# Casting — post {storage.post_id} (SPOILERS)",
+        f"# Casting preview — post {storage.post_id} (SPOILERS)",
         "",
-        "Per character below: fill in `art/gender` from the previewed icon, then set "
-        "voices in `voices.toml`. Available voices are listed at the bottom.",
+        "_Generated, regenerated every run — do not edit. Gender is set in "
+        "`genders.py`, voices in `voices.toml`._",
         "",
     ]
     for row in rows:
         screen = f" ~{row['screenname']}" if row["screenname"] else ""
-        heading = f"{row['character']}{screen}"
         icon = icons.get(row["character"])
         lines += [
-            f"## {heading}",
+            f"## {row['character']}{screen}",
             f"![]({icon})" if icon else "_(no icon)_",
             f"- central: {row['tags']} tags, {row['words']} words",
-            f"- voice: {row['current_say']}",
-            f"- art/gender: {prior_art.get(heading, '_(fill in)_')}",
+            f"- gender: {row['gender'] or 'UNKNOWN — add to genders.py'}",
+            f"- voice: {row['current_say'] or '(unassigned)'}",
             f"- opening: {openings.get(row['character'], '')}",
             "",
         ]
     lines += ["## Available voices (name | accent | gender)", ""]
     lines += [f"- {v['name']} | {v['accent']} | {v['gender']}" for v in installed_quality_say_voices_meta()]
+    out = storage.base / "casting-preview.md"
     out.write_text("\n".join(lines) + "\n")
     return out
-
-
-def _existing_art_notes(casting_md: Path) -> dict[str, str]:
-    if not casting_md.exists():
-        return {}
-    notes: dict[str, str] = {}
-    heading = None
-    for line in casting_md.read_text().splitlines():
-        if line.startswith("## "):
-            heading = line[3:].strip()
-        elif line.startswith("- art/gender:") and heading:
-            value = line.split(":", 1)[1].strip()
-            if value and value != "_(fill in)_":
-                notes[heading] = value
-    return notes
 
 
 def _provider(provider: str, api_key: str | None) -> tuple[Synth, str]:

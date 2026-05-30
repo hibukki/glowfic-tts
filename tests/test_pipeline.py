@@ -79,7 +79,7 @@ def test_cast_runs_its_prerequisites_from_scratch(tmp_path):
     pipeline.ensure_casting_inputs(storage, client=client)
     out = pipeline.write_casting_doc(storage)
 
-    assert out.exists()  # casting.md written, no FileNotFoundError
+    assert out.exists()  # casting preview written, no FileNotFoundError
     assert storage.voices_path.exists()  # voices.toml created, so there's something to edit
     assert out.read_text().lstrip().startswith("# Casting")
 

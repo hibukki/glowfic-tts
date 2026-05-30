@@ -25,7 +25,7 @@ from .models import (
     Voice,
     VoiceMap,
 )
-from .voices import GEMINI_VOICES, MAC_SAY_BLACKLIST, MAC_SAY_VOICES
+from .voices import GEMINI_VOICES, MAC_SAY_BLACKLIST, MAC_SAY_VOICES, say_voice_gender
 
 # Conservative vs the Gemini TTS input limit; confirm the real cap when wiring tts.
 DEFAULT_MAX_CHARS = 3000
@@ -163,23 +163,49 @@ def extract(story: Story, max_chars: int = DEFAULT_MAX_CHARS) -> Script:
     )
 
 
+class MissingGenders(Exception):
+    """Speakers with no gender in genders.py — autocast refuses to guess one."""
+
+    def __init__(self, names: list[str]):
+        self.names = names
+        super().__init__(
+            "no gender for: " + ", ".join(names) + ". Add them to CHARACTER_GENDERS "
+            "in genders.py (the casting preview shows each one's art + opening line)."
+        )
+
+
 def make_voicemap(
     script: Script,
+    genders: dict[str, str | None],
     existing: VoiceMap | None = None,
     say_voices: list[str] = MAC_SAY_VOICES,
     say_blacklist: set[str] = MAC_SAY_BLACKLIST,
+    allow_missing: bool = False,
 ) -> VoiceMap:
-    """Assign a voice to every speaker, preserving choices the user already made.
+    """Assign a gender-matched voice to every speaker, preserving the user's choices.
 
-    Speakers are cast most-central first (by word count) from a Premium-first pool,
-    so the biggest roles get the best voices; each unassigned speaker takes the
-    least-used option, so distinct speakers get distinct voices until the pool runs
-    out. User edits are kept, except a blacklisted `say` voice is reassigned.
+    Each speaker's gender ('M'/'F'/'N') comes from `genders`; an 'N' or unknown
+    speaker may take any voice. Speakers are cast most-central first (by word count)
+    from a Premium-first pool, so the biggest roles get the best voices; each
+    unassigned speaker takes the least-used option in its gender pool, so distinct
+    speakers get distinct voices until the pool runs out. User edits are kept,
+    except a blacklisted `say` voice is reassigned.
+
+    Raises MissingGenders (unless allow_missing) when a speaker has no 'M'/'F'/'N'.
     """
+    keys_all = list(script.speakers)
+    unknown = sorted(k for k in keys_all if genders.get(k) not in ("M", "F", "N"))
+    if unknown and not allow_missing:
+        raise MissingGenders(unknown)
+
     say_pool = sorted(
         (v for v in say_voices if v not in say_blacklist),
         key=lambda v: 0 if "Premium" in v else 1,
     )
+    say_by_gender = {
+        "M": [v for v in say_pool if say_voice_gender(v) == "M"],
+        "F": [v for v in say_pool if say_voice_gender(v) == "F"],
+    }
     prior = existing.voices if existing else {}
     words: Counter[str] = Counter()
     for chunk in script.chunks:
@@ -212,7 +238,8 @@ def make_voicemap(
             gemini = GeminiVoice(voice_name=name)
         say = kept_say[key]
         if say is None:
-            name = min(say_pool, key=lambda v: used_say[v])
+            pool = say_by_gender.get(genders.get(key)) or say_pool
+            name = min(pool, key=lambda v: used_say[v])
             used_say[name] += 1
             say = MacSayVoice(voice_name=name)
         # Start from the prior entry so unrelated provider edits (e.g. elevenlabs)

@@ -71,6 +71,11 @@ _SAY_GENDER = {
 }
 
 
+def say_voice_gender(name: str) -> str | None:
+    """'M'/'F' for a say voice (looked up by base name), else None."""
+    return _SAY_GENDER.get(name.split(" (")[0])
+
+
 def installed_quality_say_voices_meta() -> list[dict]:
     out = subprocess.run(["say", "-v", "?"], capture_output=True, text=True, check=True).stdout
     best: dict[str, dict] = {}  # base name -> chosen variant (Premium beats Enhanced)
