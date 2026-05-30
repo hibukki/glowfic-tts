@@ -25,6 +25,16 @@ def test_multiple_paragraphs_split_into_separate_blocks():
     assert len(parse_paragraphs("<p>One.</p><p>Two.</p>")) == 2
 
 
+def test_image_becomes_spoken_note_with_alt():
+    [runs] = parse_paragraphs('<p><img src="x.png" alt="a starmap"></p>')
+    assert "".join(r.text for r in runs) == "Audio note, image: a starmap."
+
+
+def test_image_without_alt_becomes_generic_note():
+    [runs] = parse_paragraphs('<p>Look:<img src="x.png" alt=""></p>')
+    assert "".join(r.text for r in runs) == "Look:Audio note: there's an image here."
+
+
 def test_chunk_voice_key_matches_source_speaker(raw_post):
     # Review fix #1: the speaker must survive extraction; no guessing from seq.
     story = assemble(raw_post)
