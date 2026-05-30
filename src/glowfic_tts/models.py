@@ -1,7 +1,6 @@
 """Shared schema for the glowfic -> audio pipeline.
 
 Every stage imports these types; only the orchestrator reads/writes them to disk.
-See PLAN.md for the design and the Codex-review fixes referenced here.
 """
 
 from __future__ import annotations
@@ -13,7 +12,7 @@ from pydantic import BaseModel
 
 
 class Coverage(BaseModel):
-    """How much of a post an artifact covers (Review fix #3).
+    """How much of a post an artifact covers.
 
     Stamped on every artifact so a sliced run can never be mistaken for, or fed
     into, a full run.
@@ -96,7 +95,7 @@ class Story(BaseModel):
 class Chunk(BaseModel):
     seq: int
     chunk_index: int
-    voice_key: str  # Review fix #1 — the speaker travels with the text
+    voice_key: str  # the speaker travels with the text
     rich: RichText
 
 
@@ -158,7 +157,7 @@ class Lines(BaseModel):
 
 
 class SynthSpec(BaseModel):
-    """The full fingerprint that determines a clip's audio (Review fix #2).
+    """The full fingerprint that determines a clip's audio.
 
     The cache key hashes *all* of these, so changing a voice, format, or any
     TTS param invalidates stale audio instead of silently reusing it.

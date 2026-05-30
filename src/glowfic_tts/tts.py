@@ -1,7 +1,7 @@
 """TTS providers: pure `SynthSpec -> wav bytes` callables.
 
-Adapters only synthesize audio; the orchestrator owns caching and disk writes
-(Review fix #4). Both providers emit PCM 24kHz/16-bit mono WAV so clips concat
+Adapters only synthesize audio; the orchestrator owns caching and disk writes.
+Both providers emit PCM 24kHz/16-bit mono WAV so clips concat
 losslessly regardless of which produced them.
 """
 

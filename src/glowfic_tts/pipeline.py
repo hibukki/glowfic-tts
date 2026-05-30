@@ -2,7 +2,7 @@
 
 Each `run_*` loads its inputs via Storage, calls a pure stage (or a network
 adapter), and saves the result. Fetch and TTS are cache loops: hit the network
-only on a miss, write the artifact, move on (Review fix #4).
+only on a miss, write the artifact, move on.
 """
 
 from __future__ import annotations

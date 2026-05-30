@@ -1,4 +1,4 @@
-"""All artifact IO lives here (Review fix #4). Stages never touch disk.
+"""All artifact IO lives here. Stages never touch disk.
 
 Paths are namespaced by post id and coverage slug, so a `--limit` slice can
 never collide with a full run; loads also assert the coverage matches.

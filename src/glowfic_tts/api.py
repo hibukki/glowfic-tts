@@ -1,7 +1,7 @@
 """Glowfic JSON API: raw response models + a network-only client adapter.
 
 The adapter only turns HTTP into parsed objects. It never touches disk and does
-no caching — the orchestrator owns the per-page cache loop (Review fix #4).
+no caching — the orchestrator owns the per-page cache loop.
 
 API shape (probed against https://glowfic.com/api/v1, 2026-05):
 - GET /posts/{id}            -> a post object (opening post = seq 0)
@@ -24,7 +24,7 @@ DEFAULT_USER_AGENT = "glowfic-tts/0.1 (personal audiobook tool)"
 
 class _Lax(BaseModel):
     # Ignore unknown fields so new API fields don't break us; required fields
-    # still validate, which is what catches real drift (Review fix #5).
+    # still validate, which is what catches real drift.
     model_config = ConfigDict(extra="ignore")
 
 

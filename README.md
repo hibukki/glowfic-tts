@@ -3,7 +3,6 @@
 Turn a [glowfic](https://glowfic.com) post into a multi-voice audiobook — each
 character gets its own voice.
 
-- Design & rationale: [PLAN.md](PLAN.md)
 - Picking voices for a post: [docs/casting.md](docs/casting.md)
 
 ## Setup
