@@ -85,18 +85,18 @@ def test_cast_runs_its_prerequisites_from_scratch(tmp_path):
 
 
 def test_cast_holds_off_voices_when_a_gender_is_unknown(tmp_path):
-    # A character with no gender in genders.py: cast still previews, but must NOT
+    # A character with no gender in characters.py: cast still previews, but must NOT
     # persist a half-cast voices.toml that bind/tts would then trust.
     storage = Storage(8, Coverage.of(None), root=tmp_path)
     stranger = RawApiReply(
         id=1, content="<p>hi</p>",
-        character=RawCharacter(id=1, name="Nobody In Genders Py"),
+        character=RawCharacter(id=1, name="Nobody In Characters Py"),
         user=RawUser(username="u"),
     )
     pipeline.ensure_casting_inputs(storage, client=FakeClient(_post(), [[stranger]]))
 
     assert pipeline.write_casting_doc(storage).exists()
-    assert "Nobody In Genders Py" in pipeline.unknown_gender_speakers(storage)
+    assert "Nobody In Characters Py" in pipeline.unknown_gender_speakers(storage)
     assert not storage.voices_path.exists()
 
 

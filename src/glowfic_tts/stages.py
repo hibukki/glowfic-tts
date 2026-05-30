@@ -25,7 +25,7 @@ from .models import (
     Voice,
     VoiceMap,
 )
-from .genders import is_known_gender
+from .characters import is_known_gender
 from .voices import (
     GEMINI_VOICES,
     MAC_SAY_BLACKLIST,
@@ -175,13 +175,13 @@ class CastingError(Exception):
 
 
 class MissingGenders(CastingError):
-    """Speakers with no gender in genders.py — autocast refuses to guess one."""
+    """Speakers with no gender in characters.py — autocast refuses to guess one."""
 
     def __init__(self, names: list[str]):
         self.names = names
         super().__init__(
-            "no gender for: " + ", ".join(names) + ". Add them to CHARACTER_GENDERS "
-            "in genders.py (the casting preview shows each one's art + opening line)."
+            "no gender for: " + ", ".join(names) + ". Add them to CHARACTERS "
+            "in characters.py (the casting preview shows each one's art + opening line)."
         )
 
 

@@ -31,7 +31,7 @@ def _build_parser() -> argparse.ArgumentParser:
         if step in ("voices", "all"):
             sp.add_argument(
                 "--dangerously-naive-autocast", action="store_true",
-                help="assign voices even for characters with no gender in genders.py",
+                help="assign voices even for characters with no gender in characters.py",
             )
         if step in ("concat", "all"):
             sp.add_argument("--group", type=int, default=None, help="one file per N replies")
@@ -94,9 +94,9 @@ def main(argv: list[str] | None = None) -> None:
         print(f"wrote {out}")
         missing = pipeline.unknown_gender_speakers(storage)
         if missing:
-            print("\n⚠️  No gender in genders.py for: " + ", ".join(missing))
+            print("\n⚠️  No gender in characters.py for: " + ", ".join(missing))
             print("   Open the preview for each one's art + opening line, add them to")
-            print("   CHARACTER_GENDERS in genders.py, then build it.")
+            print("   CHARACTERS in characters.py, then build it.")
         else:
             print("Open the preview to check the casting, then build it:")
         print(f"  glowfic-tts all {args.post_id} --chapters")

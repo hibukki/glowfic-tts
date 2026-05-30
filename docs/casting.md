@@ -4,7 +4,7 @@ How to give each glowfic character a voice that fits. This is the **process**
 (no spoilers); the per-post casting sheet — the info you draw on to choose
 voices — is a throwaway preview at `data/{post_id}/casting-preview.md`
 (regenerated every run, gitignored). The decisions themselves live in code:
-gender in [`genders.py`](../src/glowfic_tts/genders.py), voices in
+gender in [`characters.py`](../src/glowfic_tts/characters.py), voices in
 `data/{post_id}/voices.toml`.
 
 ## Signals we use
@@ -19,7 +19,7 @@ gender in [`genders.py`](../src/glowfic_tts/genders.py), voices in
 
 - **Gender match beats voice tier.** A gender-right Enhanced voice is better than
   a gender-wrong Premium one — so autocast **refuses to guess**: a character with
-  no gender in `genders.py` fails the build with a worklist, rather than risk a
+  no gender in `characters.py` fails the build with a worklist, rather than risk a
   male voice on a woman.
 - **Premium to the most central**, Enhanced to the long tail. `make_voicemap`
   does this automatically: it casts most-central-first from a Premium-first pool.
@@ -42,8 +42,8 @@ each with its **art previewed inline** (icons downloaded to `data/{post_id}/icon
 the opening line, the gender on file, and the auto-assigned voice.
 
 1. For any character shown as `gender: UNKNOWN`, use its art + opening line to
-   decide, then add it to `CHARACTER_GENDERS` in
-   [`genders.py`](../src/glowfic_tts/genders.py) (`M`/`F`, or `N` for
+   decide, then add it to `CHARACTERS` in
+   [`characters.py`](../src/glowfic_tts/characters.py) (`M`/`F`, or `N` for
    narration/settings). Autocast won't build until every character has one.
 2. Build with `glowfic-tts all <post_id> --chapters`: autocast picks a
    gender-matched voice (Premium to the most central). Override any in
