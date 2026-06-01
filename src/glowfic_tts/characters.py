@@ -91,15 +91,27 @@ def is_known_gender(value: str | None) -> bool:
     return value in VALID_GENDERS
 
 
+def _find(speaker: Speaker) -> Character | None:
+    for name in (speaker.character_name, speaker.screenname):
+        if name and name.strip().lower() in CHARACTERS:
+            return CHARACTERS[name.strip().lower()]
+    return None
+
+
 def character_gender(speaker: Speaker) -> str | None:
     """'M'/'F'/'N', or None when this character isn't in CHARACTERS (or has no gender set).
 
     A speaker with no character identity at all (author OOC / pure narration) is 'N':
     there's no one to gender.
     """
-    for name in (speaker.character_name, speaker.screenname):
-        if name and name.strip().lower() in CHARACTERS:
-            return CHARACTERS[name.strip().lower()].interpretation.gender
+    character = _find(speaker)
+    if character:
+        return character.interpretation.gender
     if not speaker.character_name and not speaker.screenname:
         return "N"
     return None
+
+
+def character_accent(speaker: Speaker) -> str | None:
+    character = _find(speaker)
+    return character.interpretation.accent if character else None

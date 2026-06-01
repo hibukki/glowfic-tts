@@ -22,7 +22,7 @@ import httpx
 
 from . import stages
 from .api import DEFAULT_USER_AGENT, GlowficClient, RawPost
-from .characters import character_gender, is_known_gender
+from .characters import character_accent, character_gender, is_known_gender
 from .models import AudioClip, AudioManifest, Lines, SynthSpec
 from .storage import Storage
 from .tts import Synth, make_gemini_synth, synth_say
@@ -84,11 +84,14 @@ def run_voices(storage: Storage, allow_missing: bool = False):
     # Prefer installed Enhanced/Premium voices; fall back to the standard list so
     # the map still generates (e.g. for gemini-only use). `say` tts enforces quality.
     say_voices = installed_quality_say_voices() or MAC_SAY_VOICES
+    voice_accents = {v["name"]: v["accent"] for v in installed_quality_say_voices_meta()}
     script = storage.load_script()
     genders = {key: character_gender(sp) for key, sp in script.speakers.items()}
+    accents = {key: character_accent(sp) for key, sp in script.speakers.items()}
     voicemap = stages.make_voicemap(
         script, genders, existing=storage.load_voicemap(),
         say_voices=say_voices, allow_missing=allow_missing,
+        accents=accents, voice_accents=voice_accents,
     )
     storage.save_voicemap(voicemap)
     return voicemap

@@ -201,15 +201,19 @@ def make_voicemap(
     say_voices: list[str] = MAC_SAY_VOICES,
     say_blacklist: set[str] = MAC_SAY_BLACKLIST,
     allow_missing: bool = False,
+    accents: dict[str, str | None] | None = None,
+    voice_accents: dict[str, str] | None = None,
 ) -> VoiceMap:
     """Assign a gender-matched voice to every speaker, preserving the user's choices.
 
     Each speaker's gender ('M'/'F'/'N') comes from `genders`; an 'N' or unknown
-    speaker may take any voice. Speakers are cast most-central first (by word count)
-    from a Premium-first pool, so the biggest roles get the best voices; each
-    unassigned speaker takes the least-used option in its gender pool, so distinct
-    speakers get distinct voices until the pool runs out. User edits are kept,
-    except a blacklisted `say` voice is reassigned.
+    speaker may take any voice. A speaker's desired `accents` (against `voice_accents`,
+    voice-name -> accent) is a *soft* preference: pick an accent-matching voice from
+    the gender pool when one is free, else fall back to the pool. Speakers are cast
+    most-central first (by word count) from a Premium-first pool, so the biggest roles
+    get the best voices; each unassigned speaker takes the least-used option in its
+    pool, so distinct speakers get distinct voices until it runs out. User edits are
+    kept, except a blacklisted `say` voice is reassigned.
 
     Raises (unless allow_missing) MissingGenders when a speaker has no 'M'/'F'/'N',
     or NoGenderedVoice when a known gender has no installed `say` voice.
@@ -264,7 +268,11 @@ def make_voicemap(
             pool = say_by_gender.get(gender)
             if gender in ("M", "F") and not pool:
                 no_voice.setdefault(gender, []).append(key)
-            name = min(pool or say_pool, key=lambda v: used_say[v])
+            pool = pool or say_pool
+            want_accent = (accents or {}).get(key)
+            if want_accent and voice_accents:
+                pool = [v for v in pool if voice_accents.get(v) == want_accent] or pool
+            name = min(pool, key=lambda v: used_say[v])
             used_say[name] += 1
             say = MacSayVoice(voice_name=name)
         # Start from the prior entry so unrelated provider edits (e.g. elevenlabs)

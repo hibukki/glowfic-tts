@@ -86,6 +86,24 @@ def test_known_gender_gets_a_matching_voice(raw_post):
     assert say_voice_gender(vm.voices[key].say.voice_name) == "M"
 
 
+def test_accent_is_a_soft_preference(raw_post):
+    script = extract(assemble(raw_post))
+    key = sorted(script.speakers)[0]
+    genders = _n(script)
+    genders[key] = "M"
+    say_voices = ["Daniel (Enhanced)", "Tom (Enhanced)"]  # both M
+    voice_accents = {"Daniel (Enhanced)": "British", "Tom (Enhanced)": "American"}
+
+    matched = make_voicemap(script, genders, say_voices=say_voices,
+                            accents={key: "British"}, voice_accents=voice_accents)
+    assert matched.voices[key].say.voice_name == "Daniel (Enhanced)"  # accent honored
+
+    # soft: an accent with no matching voice still casts (gender-matched), no raise
+    fell_back = make_voicemap(script, genders, say_voices=say_voices,
+                              accents={key: "Irish"}, voice_accents=voice_accents)
+    assert fell_back.voices[key].say.voice_name in say_voices
+
+
 def test_no_installed_voice_for_gender_fails_loud(raw_post):
     script = extract(assemble(raw_post))
     key = sorted(script.speakers)[0]
