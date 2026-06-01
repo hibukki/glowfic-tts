@@ -35,12 +35,14 @@ class Interpretation(BaseModel):
 
 
 class Character(BaseModel):
+    aliases: list[str] = Field(default_factory=list)  # other (lowercased) names for the same person
     observations: Observations = Field(default_factory=Observations)
     interpretation: Interpretation = Field(default_factory=Interpretation)
 
 
-def _c(*, gender=None, accent=None, age=None, vibe=None, icon=None, quote=None) -> Character:
+def _c(*, gender=None, accent=None, age=None, vibe=None, icon=None, quote=None, aliases=()) -> Character:
     return Character(
+        aliases=[a.lower() for a in aliases],
         observations=Observations(icons=[icon] if icon else [], quotes=[quote] if quote else []),
         interpretation=Interpretation(gender=gender, accent=accent, age=age, vibe=vibe),
     )
@@ -81,6 +83,25 @@ CHARACTERS: dict[str, Character] = {
     "unnamed exoplanet": _c(gender="N", vibe="environmental/log narration"),
     "cheliax": _c(gender="N", vibe="the nation as narrator"),
     "various gods": _c(gender="N", vibe="assorted deities narration"),
+
+    # planecrash / projectlawful — variants collapsed via aliases. Vibes from the
+    # user; gender inferred (art/canon) — correct freely.
+    "keltham": _c(gender="M", age="17", vibe="punk; dath ilani",
+                  aliases=["kelsam", ">keltham", "keltham+", "keltham v3", "keltham v4"]),
+    "carissa sevar": _c(gender="F", age="~23", vibe="protagonist", aliases=["carissa"]),
+    "abrogail": _c(gender="F", vibe="seductive, charismatic, powerful, evil queen of Cheliax",
+                   aliases=["rogail", "abrogail thrune ii"]),
+    "asmodia": _c(gender="F", vibe="math student"),
+    "pilar": _c(gender="F", vibe="submissive student",
+                aliases=["pilara pine", "pilara pinedi", "pilar pineda"]),
+    "ione sala": _c(gender="F", vibe="knowledgeable student", aliases=["ione"]),
+    # Golarion gods (canon)
+    "nethys": _c(gender="M", vibe="god of magic"),
+    "abadar": _c(gender="M", vibe="god of cities, law, wealth"),
+    "irori": _c(gender="M", vibe="god of self-perfection"),
+    "zon-kuthon": _c(gender="M", vibe="god of pain and darkness"),
+    "dispater": _c(gender="M", vibe="archdevil, ruler of Dis"),
+    "cayden cailean": _c(gender="M", vibe="god of freedom, ale, bravery"),
 }
 
 
@@ -92,9 +113,14 @@ def is_known_gender(value: str | None) -> bool:
 
 
 def _find(speaker: Speaker) -> Character | None:
-    for name in (speaker.character_name, speaker.screenname):
-        if name and name.strip().lower() in CHARACTERS:
-            return CHARACTERS[name.strip().lower()]
+    names = [n.strip().lower() for n in (speaker.character_name, speaker.screenname) if n]
+    for name in names:
+        if name in CHARACTERS:
+            return CHARACTERS[name]
+    for name in names:
+        for character in CHARACTERS.values():
+            if name in character.aliases:
+                return character
     return None
 
 
