@@ -15,11 +15,21 @@ import time
 
 import httpx
 from pydantic import BaseModel, ConfigDict
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from .models import Coverage
 
 DEFAULT_BASE_URL = "https://glowfic.com/api/v1"
 DEFAULT_USER_AGENT = "glowfic-tts/0.1 (personal audiobook tool)"
+
+# glowfic rate-limits bursts (429); these are transient, so back off and retry.
+_RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+
+
+def _is_retryable(exc: BaseException) -> bool:
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code in _RETRYABLE_STATUS
+    return isinstance(exc, httpx.TransportError)
 
 
 class _Lax(BaseModel):
@@ -91,20 +101,27 @@ class GlowficClient:
         )
         self._delay = delay_seconds
 
-    def get_post(self, post_id: int) -> RawApiPost:
+    @retry(
+        retry=retry_if_exception(_is_retryable),
+        wait=wait_exponential(multiplier=2, min=4, max=60),
+        stop=stop_after_attempt(6),
+        reraise=True,
+    )
+    def _request(self, path: str, params: dict | None = None) -> httpx.Response:
         time.sleep(self._delay)
-        r = self._client.get(f"/posts/{post_id}")
+        r = self._client.get(path, params=params)
         r.raise_for_status()
-        return RawApiPost.model_validate(r.json())
+        return r
+
+    def get_post(self, post_id: int) -> RawApiPost:
+        return RawApiPost.model_validate(self._request(f"/posts/{post_id}").json())
 
     def get_replies_page(
         self, post_id: int, page: int, per_page: int = 100
     ) -> tuple[list[RawApiReply], PageMeta]:
-        time.sleep(self._delay)
-        r = self._client.get(
+        r = self._request(
             f"/posts/{post_id}/replies", params={"page": page, "per_page": per_page}
         )
-        r.raise_for_status()
         replies = [RawApiReply.model_validate(item) for item in r.json()]
         meta = PageMeta(
             page=int(r.headers["Page"]),
