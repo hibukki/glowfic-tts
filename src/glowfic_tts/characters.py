@@ -87,21 +87,24 @@ CHARACTERS: dict[str, Character] = {
     # planecrash / projectlawful — variants collapsed via aliases. Vibes from the
     # user; gender inferred (art/canon) — correct freely.
     "keltham": _c(gender="M", age="17", vibe="punk; dath ilani",
-                  aliases=["kelsam", ">keltham", "keltham+", "keltham v3", "keltham v4"]),
+                  aliases=["kelsam", ">keltham", "dath keltham??", "keltham+", "keltham v3", "keltham v4"]),
     "carissa sevar": _c(gender="F", age="~23", vibe="protagonist", aliases=["carissa"]),
     "abrogail": _c(gender="F", vibe="seductive, charismatic, powerful, evil queen of Cheliax",
                    aliases=["rogail", "abrogail thrune ii"]),
     "asmodia": _c(gender="F", vibe="math student"),
     "pilar": _c(gender="F", vibe="submissive student",
                 aliases=["pilara pine", "pilara pinedi", "pilar pineda"]),
+    "curse of laughter": _c(gender="F", vibe="childish, silly, sing-song (My Little Pony); Pilar's curse"),
     "ione sala": _c(gender="F", vibe="knowledgeable student", aliases=["ione"]),
-    # Golarion gods (canon)
-    "nethys": _c(gender="M", vibe="god of magic"),
-    "abadar": _c(gender="M", vibe="god of cities, law, wealth"),
-    "irori": _c(gender="M", vibe="god of self-perfection"),
-    "zon-kuthon": _c(gender="M", vibe="god of pain and darkness"),
-    "dispater": _c(gender="M", vibe="archdevil, ruler of Dis"),
-    "cayden cailean": _c(gender="M", vibe="god of freedom, ale, bravery"),
+    # Golarion gods
+    "nethys": _c(gender="M", accent="British", vibe="silly, confused (god of magic)"),
+    "abadar": _c(gender="M", vibe="banker; fair, calm"),
+    "irori": _c(gender="M", vibe="no-ego (god of self-perfection)"),
+    "zon-kuthon": _c(gender="M", vibe="scary, evil"),
+    "dispater": _c(gender="M", accent="British", vibe="a devil, but very polite and tidy"),
+    "cayden cailean": _c(gender="M", vibe="god of getting drunk"),
+    "pharasma": _c(gender="F", vibe="goddess of birth, death, fate"),
+    "otolmens": _c(gender="F", vibe="enforces the laws of magic"),
 }
 
 
