@@ -25,7 +25,7 @@ from .models import (
     Voice,
     VoiceMap,
 )
-from .characters import is_known_gender
+from .characters import character_gender, is_known_gender
 from .voices import (
     GEMINI_VOICES,
     MAC_SAY_BLACKLIST,
@@ -292,8 +292,10 @@ def make_voicemap(
 
 def _introduction(speaker: Speaker, voice: Voice) -> str | None:
     """e.g. "Alexeara Cansellarion. third-of-that-name. lantalótë." — separate
-    sentences so the TTS pauses between them. None for character-less narration."""
-    if not speaker.character_name:
+    sentences so the TTS pauses between them. None for narration: a character-less
+    speaker, or a catch-all/setting (gender 'N', e.g. "various gods") that voices
+    many actual characters and so shouldn't announce itself."""
+    if not speaker.character_name or character_gender(speaker) == "N":
         return None
     parts = [speaker.character_name]
     if speaker.screenname and speaker.screenname != speaker.character_name:

@@ -1,9 +1,10 @@
 import pytest
 
-from glowfic_tts.models import GeminiVoice, MacSayVoice, Voice, VoiceMap
+from glowfic_tts.models import GeminiVoice, MacSayVoice, Speaker, Voice, VoiceMap
 from glowfic_tts.stages import (
     MissingGenders,
     NoGenderedVoice,
+    _introduction,
     assemble,
     bind,
     extract,
@@ -151,6 +152,14 @@ def test_characters_introduce_themselves_once_on_first_appearance(raw_post):
     assert len(intro_lines) == len({l.voice_key for l in intro_lines})
     content = [l for l in lines.lines if l.chunk_index >= 0]
     assert len(content) == len(script.chunks)
+
+
+def test_narration_characters_are_not_introduced():
+    # a catch-all (gender N) voices many actual gods, so it shouldn't announce itself
+    gods = Speaker(character_id=1, character_name="various gods", screenname=None, username="u")
+    assert _introduction(gods, Voice()) is None
+    person = Speaker(character_id=2, character_name="Merrin", screenname=None, username="u")
+    assert _introduction(person, Voice()) is not None
 
 
 def test_bind_fails_loudly_on_missing_voice(raw_post):
