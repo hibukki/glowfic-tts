@@ -105,6 +105,21 @@ CHARACTERS: dict[str, Character] = {
     "cayden cailean": _c(gender="M", vibe="god of getting drunk"),
     "pharasma": _c(gender="F", vibe="goddess of birth, death, fate"),
     "otolmens": _c(gender="F", vibe="enforces the laws of magic"),
+
+    # post 11623 — Dom, Incorporated (reality-show parody): Chad + seven women ("harem")
+    "chad roosterman": _c(gender="M", vibe="overconfident himbo entrepreneur; the bachelor/CEO contestant"),
+    "jeannie": _c(gender="F", vibe="harem-member employee; formal, deferential"),
+    "jade": _c(gender="F", vibe="harem-member employee; nervous, blurts the inconvenient truth"),
+    "silver": _c(gender="F", vibe="harem-member employee; silver-haired, amnesiac, deadpan"),
+    "iroko": _c(gender="F", vibe="harem-member employee; blunt, keeps forgetting to flirt"),
+    "amber": _c(gender="F", vibe="harem-member employee; wants to run the harem"),
+    "lychee": _c(gender="F", vibe="harem-member employee"),
+    "pansy": _c(gender="F", vibe="harem-member employee; flirty, ditzy"),
+    "dom, incorporated": _c(gender="N", vibe="the reality show's hype announcer / narration"),
+    "the entreprenettes": _c(gender="N", vibe="the seven women as a group (collective narration)"),
+
+    # post 19583 — planecrash (Westcrown)
+    "kobolds": _c(gender="N", vibe="narration: the kobolds beneath Westcrown (collective/setting)"),
 }
 
 
