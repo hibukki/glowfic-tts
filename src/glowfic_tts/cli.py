@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse
 
 from . import pipeline
-from .api import GlowficClient
+from .api import client_from_env
 from .models import Coverage
 from .stages import CastingError
 from .storage import Storage
@@ -54,7 +54,7 @@ def main(argv: list[str] | None = None) -> None:
     api_key = getattr(args, "api_key", None)
 
     if args.cmd in ("fetch", "all"):
-        with GlowficClient() as client:
+        with client_from_env() as client:
             raw = pipeline.run_fetch(storage, client, args.post_id, args.limit)
         print(f"fetched {len(raw.replies)} replies -> {storage.dir}/01_raw")
     if args.cmd in ("assemble", "all"):

@@ -21,7 +21,7 @@ from pathlib import Path
 import httpx
 
 from . import stages
-from .api import DEFAULT_USER_AGENT, GlowficClient, RawPost
+from .api import DEFAULT_USER_AGENT, GlowficClient, RawPost, client_from_env
 from .characters import character_accent, character_gender, is_known_gender
 from .models import AudioClip, AudioManifest, Lines, SynthSpec
 from .storage import Storage
@@ -124,7 +124,7 @@ def ensure_casting_inputs(storage: Storage, client: GlowficClient | None = None)
     must not exist for `bind`/`tts` to trust. The preview (the thing you read to fix
     genders) is still written by the caller, and the build fails loudly on what's left.
     """
-    with (nullcontext(client) if client else GlowficClient()) as c:
+    with (nullcontext(client) if client else client_from_env()) as c:
         run_fetch(storage, c, storage.post_id, storage.coverage.limit)
     run_assemble(storage)
     run_extract(storage)

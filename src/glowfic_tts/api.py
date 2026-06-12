@@ -7,10 +7,14 @@ API shape (probed against https://glowfic.com/api/v1, 2026-05):
 - GET /posts/{id}            -> a post object (opening post = seq 0)
 - GET /posts/{id}/replies    -> a plain JSON *list* of replies;
                                 pagination is in response headers Page/Per-Page/Total.
+- POST /login {username,password} -> {token}; send it back as the `Authorization`
+                                header to read posts that aren't public (403 otherwise).
+                                Token is a JWT and can expire — we just log in again.
 """
 
 from __future__ import annotations
 
+import os
 import time
 
 import httpx
@@ -95,10 +99,12 @@ class GlowficClient:
         user_agent: str = DEFAULT_USER_AGENT,
         delay_seconds: float = 1.0,
         timeout: float = 30.0,
+        auth_token: str | None = None,
     ):
-        self._client = httpx.Client(
-            base_url=base_url, headers={"User-Agent": user_agent}, timeout=timeout
-        )
+        headers = {"User-Agent": user_agent}
+        if auth_token:
+            headers["Authorization"] = auth_token  # server reads the last space-split field
+        self._client = httpx.Client(base_url=base_url, headers=headers, timeout=timeout)
         self._delay = delay_seconds
 
     @retry(
@@ -138,3 +144,44 @@ class GlowficClient:
 
     def __exit__(self, *exc: object) -> None:
         self.close()
+
+
+def login(
+    username: str,
+    password: str,
+    base_url: str = DEFAULT_BASE_URL,
+    user_agent: str = DEFAULT_USER_AGENT,
+    timeout: float = 30.0,
+) -> str:
+    """Exchange glowfic credentials for an API token (a JWT). Raises with the full
+    response body on failure (e.g. wrong password), per loud-error preference."""
+    r = httpx.post(
+        f"{base_url}/login",
+        data={"username": username, "password": password},
+        headers={"User-Agent": user_agent},
+        timeout=timeout,
+    )
+    if r.is_error:
+        raise RuntimeError(f"glowfic login failed (HTTP {r.status_code}): {r.text}")
+    return r.json()["token"]
+
+
+def client_from_env() -> GlowficClient:
+    """A client authenticated from the environment, so private posts are reachable.
+
+    GLOWFIC_API_TOKEN (a token you already hold) wins; else GLOWFIC_USERNAME +
+    GLOWFIC_PASSWORD are exchanged for one via /login. Setting only one of the
+    pair is a mistake, not "go anonymous" — it fails loudly. Nothing set -> an
+    anonymous client (public posts only)."""
+    token = os.environ.get("GLOWFIC_API_TOKEN") or None
+    if not token:
+        username = os.environ.get("GLOWFIC_USERNAME") or None
+        password = os.environ.get("GLOWFIC_PASSWORD") or None
+        if bool(username) != bool(password):
+            raise RuntimeError(
+                "glowfic auth: set BOTH GLOWFIC_USERNAME and GLOWFIC_PASSWORD "
+                "(or a pre-obtained GLOWFIC_API_TOKEN), not just one."
+            )
+        if username and password:
+            token = login(username, password)
+    return GlowficClient(auth_token=token)
