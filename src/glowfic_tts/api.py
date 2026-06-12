@@ -14,12 +14,12 @@ API shape (probed against https://glowfic.com/api/v1, 2026-05):
 
 from __future__ import annotations
 
-import os
 import time
 from collections.abc import Callable
 
 import httpx
 from pydantic import BaseModel, ConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from .models import Coverage
@@ -184,6 +184,17 @@ def login(
     return r.json()["token"]
 
 
+class _GlowficAuth(BaseSettings):
+    """Glowfic credentials from the environment and a local .env file (so no manual
+    `source .env` is needed). GLOWFIC_API_TOKEN / GLOWFIC_USERNAME / GLOWFIC_PASSWORD;
+    a real env var overrides the .env file."""
+
+    model_config = SettingsConfigDict(env_prefix="GLOWFIC_", env_file=".env", extra="ignore")
+    api_token: str | None = None
+    username: str | None = None
+    password: str | None = None
+
+
 def client_from_env() -> GlowficClient:
     """A client authenticated from the environment, so private posts are reachable.
 
@@ -195,9 +206,10 @@ def client_from_env() -> GlowficClient:
     Credential *validation* is eager (a config error should surface immediately),
     but the /login network call is deferred to the client's first request, so a
     fully cached run never logs in."""
-    token = os.environ.get("GLOWFIC_API_TOKEN") or None
-    username = os.environ.get("GLOWFIC_USERNAME") or None
-    password = os.environ.get("GLOWFIC_PASSWORD") or None
+    auth = _GlowficAuth()
+    token = auth.api_token or None
+    username = auth.username or None
+    password = auth.password or None
     if not token and (bool(username) != bool(password)):
         raise RuntimeError(
             "glowfic auth: set BOTH GLOWFIC_USERNAME and GLOWFIC_PASSWORD "

@@ -13,9 +13,10 @@ _AUTH_ENV = ("GLOWFIC_API_TOKEN", "GLOWFIC_USERNAME", "GLOWFIC_PASSWORD")
 
 
 @pytest.fixture(autouse=True)
-def _clean_env(monkeypatch):
+def _clean_env(monkeypatch, tmp_path):
     for var in _AUTH_ENV:
         monkeypatch.delenv(var, raising=False)
+    monkeypatch.chdir(tmp_path)  # away from the repo's .env so tests are hermetic
 
 
 def _resolve(client) -> str | None:
@@ -47,6 +48,20 @@ def test_login_is_lazy_and_exchanges_credentials(monkeypatch):
         assert calls == []  # deferred: no login at construction
         assert _resolve(client) == "tok-from-login"
     assert calls == [("alice", "secret")]
+
+
+def test_dotenv_file_is_loaded_without_sourcing(tmp_path):
+    """The point of pydantic-settings: creds in ./.env are picked up automatically."""
+    (tmp_path / ".env").write_text("GLOWFIC_API_TOKEN=tok-from-dotenv\n")  # tmp_path is CWD
+    with client_from_env() as client:
+        assert _resolve(client) == "tok-from-dotenv"
+
+
+def test_real_env_var_overrides_dotenv(tmp_path, monkeypatch):
+    (tmp_path / ".env").write_text("GLOWFIC_API_TOKEN=from-file\n")
+    monkeypatch.setenv("GLOWFIC_API_TOKEN", "from-env")
+    with client_from_env() as client:
+        assert _resolve(client) == "from-env"
 
 
 @pytest.mark.parametrize("present", ["GLOWFIC_USERNAME", "GLOWFIC_PASSWORD"])
