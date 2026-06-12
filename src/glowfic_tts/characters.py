@@ -120,6 +120,20 @@ CHARACTERS: dict[str, Character] = {
 
     # post 19583 — planecrash (Westcrown)
     "kobolds": _c(gender="N", vibe="narration: the kobolds beneath Westcrown (collective/setting)"),
+
+    # post 51159 — Mariona Durán (Asmodean Worldwound commander) at an Irorian temple.
+    # "minor character N" are the author's placeholder labels (real names in the vibe);
+    # generic, so a future post reusing the label would collide — see notes.
+    "mariona durán": _c(gender="F", vibe="protagonist; Asmodean priestess / Worldwound commander, intense"),
+    "alaric": _c(gender="M", vibe="scary-looking senior Irorian monk"),
+    "varan": _c(gender="M", vibe="Irorian monk"),
+    "ricard abello": _c(gender="M", vibe="fifth-circle Asmodean, new to Worldwound Fort #14"),
+    "dragomir devendra": _c(gender="M", vibe="Irorian temple security/merchant-services official"),
+    "minor character": _c(gender="F", vibe="Vesna (near-whisper)"),
+    "minor character 2": _c(gender="F", vibe="Valmira (cleric)"),
+    "minor character 3": _c(gender="M", vibe="Irorian monk questioning Durán"),
+    "security": _c(gender="N", vibe="temple gatekeeper role (institutional flag icon)"),
+    "golarion gods": _c(gender="N", vibe="gods as a collective (narration)"),
 }
 
 
