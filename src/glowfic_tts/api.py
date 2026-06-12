@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import time
+from collections.abc import Callable
 
 import httpx
 from pydantic import BaseModel, ConfigDict
@@ -99,13 +100,29 @@ class GlowficClient:
         user_agent: str = DEFAULT_USER_AGENT,
         delay_seconds: float = 1.0,
         timeout: float = 30.0,
-        auth_token: str | None = None,
+        token_provider: Callable[[], str | None] | None = None,
     ):
-        headers = {"User-Agent": user_agent}
-        if auth_token:
-            headers["Authorization"] = auth_token  # server reads the last space-split field
-        self._client = httpx.Client(base_url=base_url, headers=headers, timeout=timeout)
+        self._client = httpx.Client(
+            base_url=base_url, headers={"User-Agent": user_agent}, timeout=timeout
+        )
         self._delay = delay_seconds
+        # Resolved once, lazily, on the first network request (see _authenticate),
+        # so a fully cached run — and `cast` re-runs — never has to log in.
+        self._token_provider = token_provider
+        self._authed = False
+
+    def _authenticate(self) -> None:
+        """Attach the Authorization header on first use. Lazy on purpose: keeps the
+        'fetch hits the network only on a miss' contract — a cached/offline run that
+        never makes a request never logs in. The server reads the last space-split
+        field of Authorization, so a bare token works."""
+        if self._authed:
+            return
+        if self._token_provider:
+            token = self._token_provider()
+            if token:
+                self._client.headers["Authorization"] = token
+        self._authed = True
 
     @retry(
         retry=retry_if_exception(_is_retryable),
@@ -114,6 +131,7 @@ class GlowficClient:
         reraise=True,
     )
     def _request(self, path: str, params: dict | None = None) -> httpx.Response:
+        self._authenticate()
         time.sleep(self._delay)
         r = self._client.get(path, params=params)
         r.raise_for_status()
@@ -172,16 +190,23 @@ def client_from_env() -> GlowficClient:
     GLOWFIC_API_TOKEN (a token you already hold) wins; else GLOWFIC_USERNAME +
     GLOWFIC_PASSWORD are exchanged for one via /login. Setting only one of the
     pair is a mistake, not "go anonymous" — it fails loudly. Nothing set -> an
-    anonymous client (public posts only)."""
+    anonymous client (public posts only).
+
+    Credential *validation* is eager (a config error should surface immediately),
+    but the /login network call is deferred to the client's first request, so a
+    fully cached run never logs in."""
     token = os.environ.get("GLOWFIC_API_TOKEN") or None
-    if not token:
-        username = os.environ.get("GLOWFIC_USERNAME") or None
-        password = os.environ.get("GLOWFIC_PASSWORD") or None
-        if bool(username) != bool(password):
-            raise RuntimeError(
-                "glowfic auth: set BOTH GLOWFIC_USERNAME and GLOWFIC_PASSWORD "
-                "(or a pre-obtained GLOWFIC_API_TOKEN), not just one."
-            )
-        if username and password:
-            token = login(username, password)
-    return GlowficClient(auth_token=token)
+    username = os.environ.get("GLOWFIC_USERNAME") or None
+    password = os.environ.get("GLOWFIC_PASSWORD") or None
+    if not token and (bool(username) != bool(password)):
+        raise RuntimeError(
+            "glowfic auth: set BOTH GLOWFIC_USERNAME and GLOWFIC_PASSWORD "
+            "(or a pre-obtained GLOWFIC_API_TOKEN), not just one."
+        )
+    if token:
+        provider: Callable[[], str | None] | None = lambda: token
+    elif username and password:
+        provider = lambda: login(username, password)
+    else:
+        provider = None
+    return GlowficClient(token_provider=provider)
