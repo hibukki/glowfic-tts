@@ -134,6 +134,20 @@ CHARACTERS: dict[str, Character] = {
     "minor character 3": _c(gender="M", vibe="Irorian monk questioning Durán"),
     "security": _c(gender="N", vibe="temple gatekeeper role (institutional flag icon)"),
     "golarion gods": _c(gender="N", vibe="gods as a collective (narration)"),
+
+    # post 53995 — "come, give me my soul again" (Geb; Arazni, undead necromancers)
+    "alfirin": _c(gender="F", vibe="necromancer of Geb; guarded, controlled; her apprentice has vanished",
+                  quote="She checks that it's not an assassination attempt before replying. (It's not.)"),
+    "arazni": _c(gender="F", vibe="undead queen of Geb, former Herald of Aroden; wary, commanding (goddess)"),
+    "iomedae, paladin of aroden": _c(gender="F", vibe="mortal-era Iomedae, Knight of Ozem paladin; earnest, valorous"),
+    "paraduchess lilia ramona de montero": _c(gender="F", vibe="displaced captive noblewoman ('Paraduchess'); dutiful, weighing survival"),
+    "basil": _c(gender="M", age="young man", vibe="dark-bearded; concerned, courtly"),
+    "marit": _c(gender="M", vibe="bearded man; wry"),
+    "seldeg bhedlis": _c(gender="M", vibe="Geb officer; brisk, by-the-book"),
+    "viola rennold": _c(gender="F", age="older woman", vibe="composed, veiled matron"),
+    "karlenius": _c(gender="M", vibe="bearded man in armor; terse"),
+    "ehersior the bloody": _c(gender="M", vibe="eighth-circle lich, Blood Lord of Geb; sinister, theatrically menacing"),
+    "npc": _c(gender="N", vibe="unnamed placeholder voice (info-giving aside); plant icon"),
 }
 
 
