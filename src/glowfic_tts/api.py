@@ -126,8 +126,8 @@ class GlowficClient:
 
     @retry(
         retry=retry_if_exception(_is_retryable),
-        wait=wait_exponential(multiplier=2, min=4, max=60),
-        stop=stop_after_attempt(6),
+        wait=wait_exponential(multiplier=2, min=5, max=120),
+        stop=stop_after_attempt(8),
         reraise=True,
     )
     def _request(self, path: str, params: dict | None = None) -> httpx.Response:
