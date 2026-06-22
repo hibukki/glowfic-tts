@@ -252,6 +252,24 @@ def test_export_publishes_titled_m4b_into_book_folder(tmp_path):
     assert (book_dir / "Come, give me my soul AB.m4b").read_bytes() == b"fake m4b"
 
 
+def test_export_falls_back_to_post_id_when_title_is_all_reserved(tmp_path):
+    storage = Storage(7, Coverage.of(None), root=tmp_path)
+    storage.dir.mkdir(parents=True, exist_ok=True)
+    (storage.dir / "output.m4b").write_bytes(b"m")
+    storage.save(RawPost(
+        coverage=storage.coverage,
+        post=RawApiPost(id=7, subject="??? / ???", authors=[RawUser(username="u")],
+                        num_replies=1, content="<p>x</p>"),
+        replies=[],
+    ))
+
+    book_dir = pipeline.run_export(storage, tmp_path / "Audiobooks")
+
+    # all chars stripped -> safe fallback, not a nested path from the raw title
+    assert book_dir == tmp_path / "Audiobooks" / "post-7"
+    assert (book_dir / "post-7.m4b").exists()
+
+
 def test_export_requires_a_built_m4b(tmp_path):
     storage = Storage(7, Coverage.of(None), root=tmp_path)
     with pytest.raises(FileNotFoundError, match="--chapters"):

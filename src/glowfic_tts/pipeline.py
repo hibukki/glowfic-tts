@@ -439,10 +439,10 @@ def run_concat(storage: Storage, group: int | None = None) -> list[Path]:
 
 def _safe_folder_name(title: str) -> str:
     """Filesystem-safe folder name for Android shared storage (FAT/exFAT-safe):
-    drop reserved chars, collapse whitespace, trim trailing dots/spaces."""
+    drop reserved chars, collapse whitespace, trim trailing dots/spaces. Returns ""
+    when the title is all-reserved — callers supply a safe fallback."""
     cleaned = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "", title)
-    cleaned = re.sub(r"\s+", " ", cleaned).strip(" .")
-    return cleaned or f"post-{title!r}"
+    return re.sub(r"\s+", " ", cleaned).strip(" .")
 
 
 def run_export(storage: Storage, dest_root: Path) -> Path:
@@ -457,7 +457,7 @@ def run_export(storage: Storage, dest_root: Path) -> Path:
             f"`glowfic-tts all {storage.post_id} --chapters`."
         )
     raw = storage.load_raw()
-    name = _safe_folder_name(raw.post.subject)
+    name = _safe_folder_name(raw.post.subject) or f"post-{storage.post_id}"
     book_dir = Path(dest_root) / name
     book_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(m4b, book_dir / f"{name}.m4b")
