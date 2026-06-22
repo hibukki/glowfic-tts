@@ -7,6 +7,8 @@
 from __future__ import annotations
 
 import argparse
+import os
+from pathlib import Path
 
 from . import pipeline
 from .api import client_from_env
@@ -14,7 +16,9 @@ from .models import Coverage
 from .stages import CastingError
 from .storage import Storage
 
-_STEPS = ["fetch", "assemble", "extract", "voices", "bind", "tts", "concat", "all", "cast"]
+_STEPS = ["fetch", "assemble", "extract", "voices", "bind", "tts", "concat", "export", "all", "cast"]
+
+_EXPORT_DIR_ENV = "GLOWFIC_AUDIOBOOKS_DIR"
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -39,6 +43,11 @@ def _build_parser() -> argparse.ArgumentParser:
                 "--chapters", action="store_true",
                 help="emit a single output.m4b with a chapter per tag (open in Apple Books)",
             )
+        if step in ("export", "all"):
+            sp.add_argument(
+                "--to", default=None,
+                help=f"export the .m4b into <dir>/<Book Title>/ (default ${_EXPORT_DIR_ENV})",
+            )
     return parser
 
 
@@ -49,6 +58,9 @@ def main(argv: list[str] | None = None) -> None:
         parser.error("--limit must be at least 1")
     if getattr(args, "group", None) is not None and args.group < 1:
         parser.error("--group must be at least 1")
+    export_root = getattr(args, "to", None) or os.environ.get(_EXPORT_DIR_ENV)
+    if args.cmd == "all" and export_root and not args.chapters:
+        parser.error("--to/$GLOWFIC_AUDIOBOOKS_DIR exports the .m4b, so `all` needs --chapters")
     storage = Storage(args.post_id, Coverage.of(args.limit))
     provider = getattr(args, "provider", "say")
     api_key = getattr(args, "api_key", None)
@@ -87,6 +99,11 @@ def main(argv: list[str] | None = None) -> None:
             print(f"done -> {len(outputs)} file(s):")
             for path in outputs:
                 print(f"  {path}")
+    if args.cmd == "export" or (args.cmd == "all" and export_root):
+        if not export_root:
+            parser.error(f"export needs a destination: pass --to <dir> or set ${_EXPORT_DIR_ENV}")
+        book_dir = pipeline.run_export(storage, Path(export_root))
+        print(f"exported -> {book_dir}  (sync this folder to your phone's /Audiobooks/)")
     if args.cmd == "cast":
         print(f"preparing post {args.post_id} (fetch/assemble/extract/voices; cached after the first run)…")
         pipeline.ensure_casting_inputs(storage)

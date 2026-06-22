@@ -11,6 +11,7 @@ import functools
 import hashlib
 import os
 import re
+import shutil
 import subprocess
 import wave
 from collections import Counter
@@ -434,3 +435,50 @@ def run_concat(storage: Storage, group: int | None = None) -> list[Path]:
         _ffmpeg_concat([Path(c.path) for c in clips], out)
         outputs.append(out)
     return outputs
+
+
+def _safe_folder_name(title: str) -> str:
+    """Filesystem-safe folder name for Android shared storage (FAT/exFAT-safe):
+    drop reserved chars, collapse whitespace, trim trailing dots/spaces."""
+    cleaned = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "", title)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" .")
+    return cleaned or f"post-{title!r}"
+
+
+def run_export(storage: Storage, dest_root: Path) -> Path:
+    """Publish the built `output.m4b` into a Smart-Audiobook-Player layout:
+    <dest_root>/<Book Title>/<Book Title>.m4b (+ cover image when the post has one).
+    Point <dest_root> at a synced folder (e.g. Syncthing) and the book lands on the
+    phone. Returns the per-book folder."""
+    m4b = storage.dir / "output.m4b"
+    if not m4b.exists():
+        raise FileNotFoundError(
+            f"{m4b} missing; build the chaptered audiobook first: "
+            f"`glowfic-tts all {storage.post_id} --chapters`."
+        )
+    raw = storage.load_raw()
+    name = _safe_folder_name(raw.post.subject)
+    book_dir = Path(dest_root) / name
+    book_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(m4b, book_dir / f"{name}.m4b")
+    _export_cover(book_dir, raw)
+    return book_dir
+
+
+def _export_cover(book_dir: Path, raw: RawPost) -> None:
+    """Drop the post's icon in as the book cover (Smart Audiobook Player shows it).
+    Cosmetic: a missing icon is skipped; a dead host warns but never blocks export."""
+    icon = raw.post.icon
+    if not (icon and icon.url):
+        return
+    ext = os.path.splitext(icon.url.split("?")[0])[1] or ".png"
+    with httpx.Client(
+        headers={"User-Agent": DEFAULT_USER_AGENT}, timeout=30, follow_redirects=True
+    ) as client:
+        try:
+            response = client.get(icon.url)
+            response.raise_for_status()
+        except httpx.HTTPError as e:
+            print(f"  skipped cover: {e}")
+            return
+    (book_dir / f"cover{ext}").write_bytes(response.content)

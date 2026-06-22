@@ -4,7 +4,7 @@ import wave
 import pytest
 
 from glowfic_tts import pipeline
-from glowfic_tts.api import PageMeta, RawApiPost, RawApiReply, RawCharacter, RawUser
+from glowfic_tts.api import PageMeta, RawApiPost, RawApiReply, RawCharacter, RawPost, RawUser
 from glowfic_tts.models import (
     AudioClip,
     AudioManifest,
@@ -232,6 +232,30 @@ def test_chapters_one_per_tag_with_titles(tmp_path):
     meta = (storage.dir / "_chapters.txt").read_text()
     assert meta.count("[CHAPTER]") == 2
     assert "title=0000 Alex: Hello there friend." in meta
+
+
+def test_export_publishes_titled_m4b_into_book_folder(tmp_path):
+    storage = Storage(7, Coverage.of(None), root=tmp_path)
+    storage.dir.mkdir(parents=True, exist_ok=True)
+    (storage.dir / "output.m4b").write_bytes(b"fake m4b")
+    storage.save(RawPost(
+        coverage=storage.coverage,
+        post=RawApiPost(id=7, subject="Come, give me my soul: A/B?", authors=[RawUser(username="u")],
+                        num_replies=1, content="<p>x</p>"),  # no icon -> no cover, no network
+        replies=[],
+    ))
+
+    book_dir = pipeline.run_export(storage, tmp_path / "Audiobooks")
+
+    # reserved chars (: / ?) stripped from the Smart-Audiobook-Player folder + file name
+    assert book_dir == tmp_path / "Audiobooks" / "Come, give me my soul AB"
+    assert (book_dir / "Come, give me my soul AB.m4b").read_bytes() == b"fake m4b"
+
+
+def test_export_requires_a_built_m4b(tmp_path):
+    storage = Storage(7, Coverage.of(None), root=tmp_path)
+    with pytest.raises(FileNotFoundError, match="--chapters"):
+        pipeline.run_export(storage, tmp_path / "Audiobooks")
 
 
 def _spec(text: str) -> SynthSpec:
