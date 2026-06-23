@@ -29,12 +29,43 @@ DEFAULT_USER_AGENT = "glowfic-tts/0.1 (personal audiobook tool)"
 
 # glowfic rate-limits bursts (429); these are transient, so back off and retry.
 _RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+_MAX_BACKOFF = 120.0
+_EXP_BACKOFF = wait_exponential(multiplier=2, min=5, max=_MAX_BACKOFF)
 
 
 def _is_retryable(exc: BaseException) -> bool:
     if isinstance(exc, httpx.HTTPStatusError):
         return exc.response.status_code in _RETRYABLE_STATUS
     return isinstance(exc, httpx.TransportError)
+
+
+def _raise_for_status(r: httpx.Response) -> None:
+    """Like httpx's raise_for_status, but the error carries the *full* response body
+    (loud errors) and stays an HTTPStatusError, so 429/5xx remain retryable."""
+    if r.is_error:
+        raise httpx.HTTPStatusError(
+            f"{r.request.method} {r.request.url} -> HTTP {r.status_code}: {r.text}",
+            request=r.request, response=r,
+        )
+
+
+def _wait_retry_after(retry_state) -> float:
+    """Wait as long as glowfic's `Retry-After` asks (it knows its own throttle window),
+    else exponential backoff — capped either way so one request can't hang the build."""
+    exc = retry_state.outcome.exception()
+    if isinstance(exc, httpx.HTTPStatusError):
+        retry_after = exc.response.headers.get("Retry-After", "")
+        if retry_after.isdigit():
+            return min(float(retry_after), _MAX_BACKOFF)
+    return _EXP_BACKOFF(retry_state)
+
+
+_retry = retry(
+    retry=retry_if_exception(_is_retryable),
+    wait=_wait_retry_after,
+    stop=stop_after_attempt(8),
+    reraise=True,
+)
 
 
 class _Lax(BaseModel):
@@ -124,17 +155,17 @@ class GlowficClient:
                 self._client.headers["Authorization"] = token
         self._authed = True
 
-    @retry(
-        retry=retry_if_exception(_is_retryable),
-        wait=wait_exponential(multiplier=2, min=5, max=120),
-        stop=stop_after_attempt(8),
-        reraise=True,
-    )
     def _request(self, path: str, params: dict | None = None) -> httpx.Response:
+        # Auth sits outside the retry: login has its own backoff, and a terminal
+        # login failure must not be re-tried as if it were a flaky GET.
         self._authenticate()
+        return self._get(path, params)
+
+    @_retry
+    def _get(self, path: str, params: dict | None) -> httpx.Response:
         time.sleep(self._delay)
         r = self._client.get(path, params=params)
-        r.raise_for_status()
+        _raise_for_status(r)
         return r
 
     def get_post(self, post_id: int) -> RawApiPost:
@@ -164,6 +195,7 @@ class GlowficClient:
         self.close()
 
 
+@_retry
 def login(
     username: str,
     password: str,
@@ -171,16 +203,16 @@ def login(
     user_agent: str = DEFAULT_USER_AGENT,
     timeout: float = 30.0,
 ) -> str:
-    """Exchange glowfic credentials for an API token (a JWT). Raises with the full
-    response body on failure (e.g. wrong password), per loud-error preference."""
+    """Exchange glowfic credentials for an API token (a JWT). Backs off on transient
+    throttling/5xx like every other call; a real failure (e.g. wrong password) raises
+    loudly with the full response body."""
     r = httpx.post(
         f"{base_url}/login",
         data={"username": username, "password": password},
         headers={"User-Agent": user_agent},
         timeout=timeout,
     )
-    if r.is_error:
-        raise RuntimeError(f"glowfic login failed (HTTP {r.status_code}): {r.text}")
+    _raise_for_status(r)
     return r.json()["token"]
 
 

@@ -102,6 +102,19 @@ def test_login_posts_credentials_and_returns_token(monkeypatch):
 
 def test_login_raises_with_body_on_error(monkeypatch):
     body = {"errors": [{"message": "You have entered an incorrect password."}]}
-    monkeypatch.setattr(api.httpx, "post", lambda *a, **k: httpx.Response(401, json=body))
-    with pytest.raises(RuntimeError, match="incorrect password"):
+    req = httpx.Request("POST", "https://glowfic.com/api/v1/login")
+    monkeypatch.setattr(api.httpx, "post", lambda *a, **k: httpx.Response(401, json=body, request=req))
+    with pytest.raises(httpx.HTTPStatusError, match="incorrect password"):
         login("bob", "wrong")
+
+
+def test_login_retries_through_throttle(monkeypatch):
+    """A 429 on /login is transient — back off (here Retry-After: 0) and try again."""
+    req = httpx.Request("POST", "https://glowfic.com/api/v1/login")
+    responses = [
+        httpx.Response(429, headers={"Retry-After": "0"}, text="Throttled", request=req),
+        httpx.Response(200, json={"token": "jwt-after-retry"}, request=req),
+    ]
+    monkeypatch.setattr(api.httpx, "post", lambda *a, **k: responses.pop(0))
+    assert login("bob", "pw") == "jwt-after-retry"
+    assert responses == []  # both consumed: one throttle, then success
