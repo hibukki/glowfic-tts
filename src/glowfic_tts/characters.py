@@ -148,6 +148,23 @@ CHARACTERS: dict[str, Character] = {
     "karlenius": _c(gender="M", vibe="bearded man in armor; terse"),
     "ehersior the bloody": _c(gender="M", vibe="eighth-circle lich, Blood Lord of Geb; sinister, theatrically menacing"),
     "npc": _c(gender="N", vibe="unnamed placeholder voice (info-giving aside); plant icon"),
+
+    # post 6304 — "to face the death you're never that far from" (dath ilan medical
+    # crisis: Kalorm critically injured, Merrin the medic, Kalorm's family gathered)
+    "kalorm": _c(gender="M", age="young man", vibe="the patient; blonde, athletic, unconscious through the crisis",
+                 quote="Tentative readings on core body temperature: 23.8 C…"),
+    "khemeth": _c(gender="M", vibe="coordinates from a wall of screens; analytical, runs the info flow",
+                  quote="a man sits in front of a dozen LCD screens"),
+    "dekan": _c(gender="M", vibe="Khemeth's boyfriend; sidelined, aching to help",
+                quote="join his boyfriend at the hospital"),
+    "finnar": _c(gender="M", vibe="basement-workshop maker; metabolic-pathway visualizations"),
+    "kurthin": _c(gender="M", age="young", vibe="exchanges miserable looks with his father"),
+    "telfin": _c(gender="M", age="child", vibe="twin (with Pittan); strategy-game player"),
+    "pittan": _c(gender="M", age="child", vibe="twin (with Telfin); strategy-game player"),
+    "mallor": _c(gender="F", vibe="restless, wants to sing; would rather not be at the hospital"),
+    "ranthir": _c(gender="F", age="young", vibe="precocious; bets against the medical prediction markets"),
+    "nerdel": _c(gender="F", age="older woman", vibe="red-haired; organizes the gathered family's logistics"),
+    "miscellaneous dath ilan characters": _c(gender="N", vibe="grab-bag of Exception Handling liaisons / minor dath ilani"),
 }
 
 
