@@ -35,25 +35,31 @@ def _pcm_to_wav(pcm: bytes) -> bytes:
     return buffer.getvalue()
 
 
+# macOS `say` shares one speech service (speechsynthesisd); under heavy parallelism it
+# can wedge so a single invocation hangs indefinitely. Bound each call so a wedge
+# surfaces as a kill-and-retry instead of a stuck worker that stalls the whole build.
+SAY_TIMEOUT_SECONDS = 60
+SAY_ATTEMPTS = 3
+
+
 def synth_say(spec: SynthSpec) -> bytes:
     voice = spec.voice.say
     if voice is None:
         raise ValueError(f"Line for {spec.text[:30]!r} has no `say` voice configured.")
     rate = int(spec.params.get("sample_rate", SAY_SAMPLE_RATE))
-    with tempfile.TemporaryDirectory() as tmp:
-        out = Path(tmp) / "clip.wav"
-        subprocess.run(
-            [
-                "say",
-                "-v", voice.voice_name,
-                "--file-format=WAVE",
-                f"--data-format=LEI16@{rate}",
-                "-o", str(out),
-            ],
-            input=spec.text.encode(),
-            check=True,
-        )
-        return out.read_bytes()
+    cmd = ["say", "-v", voice.voice_name, "--file-format=WAVE", f"--data-format=LEI16@{rate}"]
+    for attempt in range(1, SAY_ATTEMPTS + 1):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "clip.wav"
+            try:
+                subprocess.run(
+                    [*cmd, "-o", str(out)], input=spec.text.encode(),
+                    check=True, timeout=SAY_TIMEOUT_SECONDS,
+                )
+                return out.read_bytes()
+            except subprocess.TimeoutExpired:
+                if attempt == SAY_ATTEMPTS:
+                    raise
 
 
 def make_gemini_synth(api_key: str | None = None) -> Synth:
