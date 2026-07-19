@@ -165,6 +165,17 @@ CHARACTERS: dict[str, Character] = {
     "ranthir": _c(gender="F", age="young", vibe="precocious; bets against the medical prediction markets"),
     "nerdel": _c(gender="F", age="older woman", vibe="red-haired; organizes the gathered family's logistics"),
     "miscellaneous dath ilan characters": _c(gender="N", vibe="grab-bag of Exception Handling liaisons / minor dath ilani"),
+
+    # post 6340 — "be swallowed up by the sun" (Carissa crash-lands in dath ilan)
+    "irris": _c(gender="F", age="middle-aged woman", vibe="passenger on the crashing plane; her daughter works Exception Handling",
+                quote="Planes are not, in general, supposed to crash."),
+
+    # post 5633 — "a dath ilani EMT in queen abrogail's court" (Merrin isekai'd to Cheliax)
+    "albe": _c(gender="F", vibe="Merrin's Chelish handler/companion; fast-talking, smooth, sells Cheliax's pleasures",
+               quote="I would expect you to find all of Egorian's entertainments to be paltry things."),
+    "antonio agramunt": _c(gender="M", vibe="Chelish official receiving Merrin; courteous, procedural, out of his depth"),
+    "vicent of tuca": _c(gender="M", vibe="fifth-circle Chelish wizard; territorial, wants charge of the visitor"),
+    "erecura": _c(gender="F", vibe="Lawful Neutral goddess, Queen of Dis; secrets, prophecy"),
 }
 
 
