@@ -148,6 +148,10 @@ CHARACTERS: dict[str, Character] = {
     "karlenius": _c(gender="M", vibe="bearded man in armor; terse"),
     "ehersior the bloody": _c(gender="M", vibe="eighth-circle lich, Blood Lord of Geb; sinister, theatrically menacing"),
     "npc": _c(gender="N", vibe="unnamed placeholder voice (info-giving aside); plant icon"),
+    "casata": _c(gender="M", vibe="Crusade war-council officer; long braided hair, bearded; skeptical",
+                 quote="Is there anyone in the Darklands we could ally with to cut off the supply lines, then?"),
+    "constantinus eorello": _c(gender="M", vibe="Crusade war planner; dry, impatient with paladin scruples (gender from the name)",
+                               quote="Well, name your favorite demon lord."),
 
     # post 6304 — "to face the death you're never that far from" (dath ilan medical
     # crisis: Kalorm critically injured, Merrin the medic, Kalorm's family gathered)
@@ -176,6 +180,32 @@ CHARACTERS: dict[str, Character] = {
     "antonio agramunt": _c(gender="M", vibe="Chelish official receiving Merrin; courteous, procedural, out of his depth"),
     "vicent of tuca": _c(gender="M", vibe="fifth-circle Chelish wizard; territorial, wants charge of the visitor"),
     "erecura": _c(gender="F", vibe="Lawful Neutral goddess, Queen of Dis; secrets, prophecy"),
+
+    # post 40828 — "Through a hole in the sky" (dath ilan × GATE: a Roman-style empire invades)
+    "saderan empire": _c(gender="N", vibe="narration: the invading empire's viewpoint (legions, senate)"),
+    "falmart": _c(gender="N", vibe="narration: the world beyond the gate / scene-setting"),
+    "???": _c(gender="N", vibe="narration: an unidentified stealthed observer"),
+
+    # post 4503 — "a dath ilani matchmaker in King Randale's court" (Thellim isekai'd to Valdemar)
+    "thellim": _c(gender="F", vibe="protagonist; dath ilani, analytical, out of her depth in a medieval world",
+                  quote="She wasn't ever supposed to die."),
+    "vanyel ashkevron": _c(gender="M", vibe="Herald-Mage; dark-haired, starved-looking, exhausted, guarded"),
+    "melody": _c(gender="F", vibe="red-haired Mindhealer in green robes; brisk, practical"),
+    "yfandes": _c(gender="F", vibe="Vanyel's Companion (white horse, Mindspeech); protective"),
+    "lissa ashkevron": _c(gender="F", vibe="Vanyel's sister; tall Guard officer, warm, loud"),
+    "savil ashkevron": _c(gender="F", age="older woman", vibe="Herald-Mage, Vanyel's aunt; gruff, tired"),
+    "leareth": _c(gender="M", vibe="immortal mage in black with an army at his back; cold, precise"),
+    "herald randale (randi)": _c(gender="M", age="very young man", vibe="King of Valdemar; friendly, light brown ponytail"),
+    "shavri": _c(gender="F", age="~21", vibe="King's Own / Healer in green; reluctant, resigned"),
+    "herald jaysen": _c(gender="M", vibe="Seneschal's Herald; Mindspeaker, formal"),
+    "herald tantras (tran)": _c(gender="M", age="early thirties", vibe="handsome, fit, curious"),
+    "herald keiran": _c(gender="F", vibe="stares at Thellim like a fascinating new beetle"),
+    "moondance k'treva": _c(gender="M", vibe="Tayledras Healing-Adept; startled out of trance, terrified"),
+    "star-eyed goddess": _c(gender="F", vibe="Shin'a'in goddess (acts through a woman in brown robes)"),
+    "sunpriest": _c(gender="M", vibe="Karsite priest of Vkandis, at prayer"),
+    "need": _c(gender="F", vibe="ancient sentient sword; dusty, grumbling mental voice",
+               quote=":By the Twain, what is it this time:"),
+    "vkandis sunlord": _c(gender="M", vibe="Karsite sun god"),
 }
 
 
