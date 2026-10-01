@@ -10,6 +10,7 @@ data/
 
 # Scratch
 .tmp.gitignored/
+.DS_Store
 
 # Secrets
-.env
+.env*
