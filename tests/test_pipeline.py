@@ -70,15 +70,32 @@ def test_fetch_respects_limit_and_caches(tmp_path):
     assert client.post_calls == 0 and client.page_calls == []
 
 
-def test_refresh_rereads_the_growing_tail(tmp_path):
-    # Glowfic threads grow, and the cached last page would hide that forever.
-    storage = Storage(7, Coverage.of(None), root=tmp_path)
-    client = FakeClient(_post(), [[_reply(1), _reply(2)]])
-    assert len(pipeline.run_fetch(storage, client, 7, limit=None).replies) == 2
+def _paged(total: int, per_page: int = 100) -> list[list[RawApiReply]]:
+    """`total` replies as the API would serve them: full pages, then a short tail
+    (an empty one when the count lands exactly on a page boundary)."""
+    items = [_reply(i) for i in range(1, total + 1)]
+    pages = [items[i : i + per_page] for i in range(0, len(items), per_page)]
+    if not pages or len(pages[-1]) == per_page:
+        pages.append([])
+    return pages
 
-    client.pages = [[_reply(1), _reply(2), _reply(3)]]  # the authors posted another tag
-    assert len(pipeline.run_fetch(storage, client, 7, limit=None).replies) == 2  # cached
-    assert len(pipeline.run_fetch(storage, client, 7, limit=None, refresh=True).replies) == 3
+
+def test_refresh_rereads_only_the_growing_tail(tmp_path):
+    # Glowfic threads grow, and the cached short last page hides that forever.
+    # Refresh must re-read that tail *only*: full pages can never change, and the
+    # API is rate-limited, so re-crawling them would just burn requests.
+    storage = Storage(7, Coverage.of(None), root=tmp_path)
+    client = FakeClient(_post(), _paged(102))
+    assert len(pipeline.run_fetch(storage, client, 7, limit=None).replies) == 102
+
+    client.pages = _paged(205)  # 103 more tags: the tail fills up and spills over
+    client.page_calls.clear()
+    assert len(pipeline.run_fetch(storage, client, 7, limit=None).replies) == 102
+    assert client.page_calls == []  # default run stays offline
+
+    raw = pipeline.run_fetch(storage, client, 7, limit=None, refresh=True)
+    assert len(raw.replies) == 205
+    assert client.page_calls == [2, 3]  # page 1 was full, so it stayed cached
 
 
 def test_cast_runs_its_prerequisites_from_scratch(tmp_path):
