@@ -40,7 +40,15 @@ from .voices import (
 DEFAULT_PER_PAGE = 100
 
 
-def run_fetch(storage: Storage, client: GlowficClient, post_id: int, limit: int | None) -> RawPost:
+def run_fetch(
+    storage: Storage, client: GlowficClient, post_id: int, limit: int | None, refresh: bool = False
+) -> RawPost:
+    """Fetch the post + its replies, caching each page of replies.
+
+    A page that came back full is final — glowfic replies are append-only, so it
+    can never change. The last page is short and will grow as the authors post, so
+    `refresh` re-reads just that tail; without it the run stays entirely offline.
+    """
     if storage.raw_post_path.exists():
         post = storage.load_raw_post()
     else:
@@ -51,8 +59,10 @@ def run_fetch(storage: Storage, client: GlowficClient, post_id: int, limit: int 
     replies = []
     page = 1
     while True:
-        if storage.raw_page_path(page).exists():
-            page_items = storage.load_raw_page(page)
+        cached = storage.load_raw_page(page) if storage.raw_page_path(page).exists() else None
+        stale_tail = refresh and cached is not None and len(cached) < per_page
+        if cached is not None and not stale_tail:
+            page_items = cached
         else:
             page_items, _meta = client.get_replies_page(post_id, page, per_page)
             storage.save_raw_page(page, page_items)
@@ -113,7 +123,9 @@ def run_bind(storage: Storage):
     return lines
 
 
-def ensure_casting_inputs(storage: Storage, client: GlowficClient | None = None) -> None:
+def ensure_casting_inputs(
+    storage: Storage, client: GlowficClient | None = None, refresh: bool = False
+) -> None:
     """Run every step `cast` reads from (fetch -> assemble -> extract -> voices).
 
     Each step owns its own caching/recompute (fetch hits the network only on a
@@ -126,7 +138,7 @@ def ensure_casting_inputs(storage: Storage, client: GlowficClient | None = None)
     genders) is still written by the caller, and the build fails loudly on what's left.
     """
     with (nullcontext(client) if client else client_from_env()) as c:
-        run_fetch(storage, c, storage.post_id, storage.coverage.limit)
+        run_fetch(storage, c, storage.post_id, storage.coverage.limit, refresh=refresh)
     run_assemble(storage)
     run_extract(storage)
     try:

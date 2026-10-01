@@ -70,6 +70,17 @@ def test_fetch_respects_limit_and_caches(tmp_path):
     assert client.post_calls == 0 and client.page_calls == []
 
 
+def test_refresh_rereads_the_growing_tail(tmp_path):
+    # Glowfic threads grow, and the cached last page would hide that forever.
+    storage = Storage(7, Coverage.of(None), root=tmp_path)
+    client = FakeClient(_post(), [[_reply(1), _reply(2)]])
+    assert len(pipeline.run_fetch(storage, client, 7, limit=None).replies) == 2
+
+    client.pages = [[_reply(1), _reply(2), _reply(3)]]  # the authors posted another tag
+    assert len(pipeline.run_fetch(storage, client, 7, limit=None).replies) == 2  # cached
+    assert len(pipeline.run_fetch(storage, client, 7, limit=None, refresh=True).replies) == 3
+
+
 def test_cast_runs_its_prerequisites_from_scratch(tmp_path):
     # The README presents `cast` as the first command; it must work from an empty
     # data dir by running fetch->assemble->extract->voices itself (no manual chain).

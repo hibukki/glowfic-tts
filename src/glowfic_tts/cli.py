@@ -28,6 +28,11 @@ def _build_parser() -> argparse.ArgumentParser:
         sp = sub.add_parser(step)
         sp.add_argument("post_id", type=int)
         sp.add_argument("--limit", type=int, default=None, help="only the first N replies")
+        if step in ("fetch", "all", "cast"):
+            sp.add_argument(
+                "--refresh", action="store_true",
+                help="re-read the thread's last (partial) page — picks up new replies",
+            )
         if step in ("tts", "all"):
             sp.add_argument("--provider", default="say", choices=["say", "gemini"])
             sp.add_argument("--api-key", default=None, help="Gemini key (else $GEMINI_API_KEY)")
@@ -67,7 +72,7 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.cmd in ("fetch", "all"):
         with client_from_env() as client:
-            raw = pipeline.run_fetch(storage, client, args.post_id, args.limit)
+            raw = pipeline.run_fetch(storage, client, args.post_id, args.limit, refresh=args.refresh)
         print(f"fetched {len(raw.replies)} replies -> {storage.dir}/01_raw")
     if args.cmd in ("assemble", "all"):
         story = pipeline.run_assemble(storage)
@@ -106,7 +111,7 @@ def main(argv: list[str] | None = None) -> None:
         print(f"exported -> {book_dir}  (sync this folder to your phone's /Audiobooks/)")
     if args.cmd == "cast":
         print(f"preparing post {args.post_id} (fetch/assemble/extract/voices; cached after the first run)…")
-        pipeline.ensure_casting_inputs(storage)
+        pipeline.ensure_casting_inputs(storage, refresh=args.refresh)
         out = pipeline.write_casting_doc(storage)
         print(f"wrote {out}")
         missing = pipeline.unknown_gender_speakers(storage)
